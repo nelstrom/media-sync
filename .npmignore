@@ -1,0 +1,22 @@
+# NPM ignore file
+# Source code
+src/
+
+# Config files
+.eslintrc
+.prettierrc
+.editorconfig
+tsconfig.json
+vite.config.ts
+preview.js
+
+# Tests
+*.test.ts
+*.spec.ts
+vitest.config.ts
+
+# Development files
+inspiration/
+samples/
+*.log
+.github/
