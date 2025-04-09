@@ -41,24 +41,28 @@ export class MediaElementWrapperImpl implements MediaElementWrapper {
     this.onReadyCallback = options.onReady || (() => {});
 
     this.setupEventListeners();
-    const originalCurrentTime = Object.getOwnPropertyDescriptor(
-      HTMLMediaElement.prototype,
-      "currentTime"
-    )!;
+    
+    const originalGetter = Object.getOwnPropertyDescriptor(HTMLMediaElement.prototype, 'currentTime')?.get;
+    const originalSetter = Object.getOwnPropertyDescriptor(HTMLMediaElement.prototype, 'currentTime')?.set;
 
-    Object.defineProperty(this.element, "currentTime", {
-      get: function () {
-        return originalCurrentTime.get.call(this);
-      },
-      set: function (value) {
-        this.isUserInitiated = false;
-        // Call the original setter method
-        originalCurrentTime.set.call(this, value);
-      },
-    });
+    if (originalGetter && originalSetter) {
+      // Store reference to 'this' for closure
+      const self = this;
+      
+      Object.defineProperty(this.element, "currentTime", {
+        get: function() {
+          return originalGetter.call(this);
+        },
+        set: function(value) {
+          self.isUserInitiated = false;
+          originalSetter.call(this, value);
+        },
+      });
+    } else {
+      console.error("Failed to override currentTime property");
+    }
 
-    element.addEventListener('seeking', (e) => {
-      console.log('seeking', {e});
+    element.addEventListener('seeking', () => {
       if (this.isUserInitiated) {
         element.dispatchEvent(userSeekingEvent);
       } else {
@@ -66,8 +70,7 @@ export class MediaElementWrapperImpl implements MediaElementWrapper {
       }
     })
     
-    element.addEventListener('seeked', (e) => {
-      console.log('seeked', {e});
+    element.addEventListener('seeked', () => {
       if (this.isUserInitiated) {
         element.dispatchEvent(userSeekedEvent);
       } else {
