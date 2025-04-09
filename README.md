@@ -28,3 +28,28 @@ This example features one video track and two audio tracks. In this example, con
 ## Media constraints
 
 The `<media-sync>` element works on the assumption that all provided tracks have the same duration. Typically, these media tracks would be created together in a dedicated video or audio editing program.
+
+## Challenges
+
+- [ ] play/pause any track causes all tracks to play/pause
+- [ ] while playing: manually scrubbing any track causes all tracks to scrub
+- [ ] while paused: manually scrubbing any track causes all tracks to scrub
+- [ ] setting `currentTime` on any track causes all tracks to sync to that timestamp
+- [ ] periodically check deltas and re-sync to correct any drift
+- [ ] give media-sync element a similar interface to media elements (play, pause, currentTime)
+
+### sync-video-player inspired approach
+
+Main/Secondary control structure.
+
+'timeupdate' events from main element cause other parts to be seeked to match (if their delta exceeds a threshold).
+
+play/pause/seek events are 
+
+## Preferred approach
+
+play event from any track causes all tracks to play
+pause event from any track causes all tracks to pause
+seek event from any track causes all tracks to seek
+
+Use requestAnimationFrame to schedule delta-checks

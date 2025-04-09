@@ -13,7 +13,6 @@ export class MediaElementWrapperImpl implements MediaElementWrapper {
   public isMain: boolean = false;
   
   private onStateChangeCallback: (state: MediaState, wrapper: MediaElementWrapper) => void;
-  private onTimeUpdateCallback: (time: number, wrapper: MediaElementWrapper) => void;
   private onReadyCallback: (wrapper: MediaElementWrapper) => void;
   
   constructor(
@@ -21,7 +20,6 @@ export class MediaElementWrapperImpl implements MediaElementWrapper {
     options: {
       isMain?: boolean;
       onStateChange?: (state: MediaState, wrapper: MediaElementWrapper) => void;
-      onTimeUpdate?: (time: number, wrapper: MediaElementWrapper) => void;
       onReady?: (wrapper: MediaElementWrapper) => void;
     } = {}
   ) {
@@ -30,7 +28,6 @@ export class MediaElementWrapperImpl implements MediaElementWrapper {
     this.isMain = options.isMain || false;
     
     this.onStateChangeCallback = options.onStateChange || (() => {});
-    this.onTimeUpdateCallback = options.onTimeUpdate || (() => {});
     this.onReadyCallback = options.onReady || (() => {});
     
     this.setupEventListeners();
@@ -49,12 +46,6 @@ export class MediaElementWrapperImpl implements MediaElementWrapper {
     this.element.addEventListener('loadeddata', () => this.handleReady());
     this.element.addEventListener('canplaythrough', () => this.handleStateChange(MediaState.UNSTARTED));
     this.element.addEventListener('waiting', () => this.handleStateChange(MediaState.BUFFERING));
-    
-    // Time update
-    this.element.addEventListener('timeupdate', () => this.handleTimeUpdate());
-    
-    // Seeking
-    this.element.addEventListener('seeking', () => this.handleSeeking());
   }
   
   /**
@@ -81,25 +72,6 @@ export class MediaElementWrapperImpl implements MediaElementWrapper {
   private handleReady(): void {
     Logger.debug(`${this.id} is ready`);
     this.onReadyCallback(this);
-  }
-  
-  /**
-   * Handle time updates during playback
-   */
-  private handleTimeUpdate(): void {
-    if (!this.isMain) return;
-    
-    this.onTimeUpdateCallback(this.getCurrentTime(), this);
-  }
-  
-  /**
-   * Handle seeking events
-   */
-  private handleSeeking(): void {
-    if (!this.isMain) return;
-    
-    Logger.debug(`${this.id} seeking to ${this.getCurrentTime()}`);
-    this.onTimeUpdateCallback(this.getCurrentTime(), this);
   }
   
   /**

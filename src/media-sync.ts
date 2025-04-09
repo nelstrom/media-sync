@@ -12,7 +12,6 @@ export class MediaSync extends HTMLElement {
   private currentTime: number = 0;
   private readyCount: number = 0;
   private mainMediaElement: MediaElementWrapper | null = null;
-  private syncThreshold: number = 0.5; // Sync media when time difference exceeds this threshold (in seconds)
   
   constructor() {
     super();
@@ -61,7 +60,6 @@ export class MediaSync extends HTMLElement {
       const wrapper = new MediaElementWrapperImpl(element, {
         isMain,
         onStateChange: this.handleStateChange.bind(this),
-        onTimeUpdate: this.handleTimeUpdate.bind(this),
         onReady: this.handleElementReady.bind(this)
       });
       
@@ -116,21 +114,6 @@ export class MediaSync extends HTMLElement {
   }
   
   /**
-   * Handle time updates from the main media element
-   */
-  private handleTimeUpdate(time: number, mediaElement: MediaElementWrapper): void {
-    if (!mediaElement.isMain) return;
-    
-    const timeDiff = Math.abs(this.currentTime - time);
-    if (timeDiff > this.syncThreshold) {
-      this.seekAll(time);
-    }
-    
-    this.currentTime = time;
-    this.ensurePlaybackStates();
-  }
-  
-  /**
    * Handle when a media element is ready to play
    */
   private handleElementReady(mediaElement: MediaElementWrapper): void {
@@ -161,32 +144,6 @@ export class MediaSync extends HTMLElement {
     if (onSuccess) {
       await onSuccess(newState, oldState);
     }
-  }
-  
-  /**
-   * Ensure all media elements are in the correct playback state
-   */
-  private ensurePlaybackStates(): void {
-    if (!this.mainMediaElement) return;
-    
-    this.mediaElements.forEach(mediaElement => {
-      if (mediaElement === this.mainMediaElement) return;
-      if (mediaElement.isEnded()) return;
-      
-      // If main is playing but this element isn't
-      if (this.mainMediaElement?.isPlaying && !mediaElement.isPlaying) {
-        mediaElement.play().catch(() => {
-          // Handle error if needed
-        });
-      }
-      
-      // If main is not playing but this element is
-      if (!this.mainMediaElement?.isPlaying && mediaElement.isPlaying) {
-        mediaElement.pause().catch(() => {
-          // Handle error if needed
-        });
-      }
-    });
   }
   
   /**
