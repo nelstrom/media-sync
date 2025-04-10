@@ -8,6 +8,7 @@ import { Logger } from "./utils";
  */
 export class MediaSync extends HTMLElement {
   private mediaElements: MediaElementWrapper[] = [];
+  private isSyncingPlay: boolean = false;
 
   constructor() {
     super();
@@ -77,11 +78,27 @@ export class MediaSync extends HTMLElement {
       element.addEventListener("play", (e) => {
         console.log(index, e);
       });
-      element.addEventListener(CustomEventNames.user.play, (e) => {
-        console.log(index, e);
+      
+      // Handle user-initiated play events
+      element.addEventListener(CustomEventNames.user.play, () => {
+        Logger.debug(`User play event from element ${index}`);
+        
+        // Play all other media elements
+        this.mediaElements.forEach((mediaWrapper) => {
+          if (mediaWrapper.element !== element) {
+            mediaWrapper.play();
+          }
+        });
       });
-      element.addEventListener(CustomEventNames.programmatic.play, (e) => {
-        console.log(index, e);
+      
+      // Handle programmatic play events
+      element.addEventListener(CustomEventNames.programmatic.play, () => {
+        Logger.debug(`Programmatic play event from element ${index}`);
+        
+        // Only respond if we're not currently in the process of syncing play
+        if (!this.isSyncingPlay) {
+          this.play();
+        }
       });
 
       this.mediaElements.push(wrapper);
@@ -92,4 +109,34 @@ export class MediaSync extends HTMLElement {
     });
   }
 
+  /**
+   * Play all media elements
+   */
+  public async play(): Promise<void> {
+    if (this.mediaElements.length === 0) {
+      Logger.error("No media elements available to play");
+      return;
+    }
+    
+    try {
+      Logger.debug("MediaSync: Playing all media elements");
+      
+      // Set flag to prevent infinite loops from programmatic play events
+      this.isSyncingPlay = true;
+      
+      // Play all media elements
+      const playPromises = this.mediaElements.map(media => media.play());
+      
+      // Wait for all play operations to complete
+      await Promise.all(playPromises);
+      
+      // Reset flag after all play operations are complete
+      setTimeout(() => {
+        this.isSyncingPlay = false;
+      }, 0);
+      
+    } catch (error) {
+      Logger.error("Error playing media elements:", error);
+    }
+  }
 }
