@@ -50,6 +50,7 @@ play/pause/seek events are
 
 play event from any track causes all tracks to play
 pause event from any track causes all tracks to pause
-seek event from any track causes all tracks to seek
+user-seek event from any track causes all tracks to seek
+program-seek event goes into a sub-state where all tracks are synced (without causing infinite loops)
 
 Use requestAnimationFrame to schedule delta-checks
