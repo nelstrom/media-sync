@@ -37,7 +37,7 @@ export interface MediaElementWrapper {
   /**
    * Pause the media element
    */
-  pause(): Promise<void>;
+  pause(): void;
   
   /**
    * Seek to a specific time

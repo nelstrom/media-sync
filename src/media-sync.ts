@@ -9,6 +9,7 @@ import { Logger } from "./utils";
 export class MediaSync extends HTMLElement {
   private mediaElements: MediaElementWrapper[] = [];
   private isSyncingPlay: boolean = false;
+  private isSyncingPause: boolean = false;
 
   constructor() {
     super();
@@ -78,6 +79,9 @@ export class MediaSync extends HTMLElement {
       element.addEventListener("play", (e) => {
         console.log(index, e);
       });
+      element.addEventListener("pause", (e) => {
+        console.log(index, e);
+      });
       
       // Handle user-initiated play events
       element.addEventListener(CustomEventNames.user.play, () => {
@@ -98,6 +102,28 @@ export class MediaSync extends HTMLElement {
         // Only respond if we're not currently in the process of syncing play
         if (!this.isSyncingPlay) {
           this.play();
+        }
+      });
+      
+      // Handle user-initiated pause events
+      element.addEventListener(CustomEventNames.user.pause, () => {
+        Logger.debug(`User pause event from element ${index}`);
+        
+        // Pause all other media elements
+        this.mediaElements.forEach((mediaWrapper) => {
+          if (mediaWrapper.element !== element) {
+            mediaWrapper.pause();
+          }
+        });
+      });
+      
+      // Handle programmatic pause events
+      element.addEventListener(CustomEventNames.programmatic.pause, () => {
+        Logger.debug(`Programmatic pause event from element ${index}`);
+        
+        // Only respond if we're not currently in the process of syncing pause
+        if (!this.isSyncingPause) {
+          this.pause();
         }
       });
 
@@ -138,5 +164,29 @@ export class MediaSync extends HTMLElement {
     } catch (error) {
       Logger.error("Error playing media elements:", error);
     }
+  }
+
+  /**
+   * Pause all media elements
+   */
+  public pause(): void {
+    if (this.mediaElements.length === 0) {
+      Logger.error("No media elements available to pause");
+      return;
+    }
+    
+    Logger.debug("MediaSync: Pausing all media elements");
+    
+    // Set flag to prevent infinite loops from programmatic pause events
+    this.isSyncingPause = true;
+    
+    // Pause all media elements - this is synchronous
+    this.mediaElements.forEach(media => media.pause());
+    
+    // Reset flag after pausing is complete
+    // Use setTimeout to ensure this runs after the current execution cycle
+    setTimeout(() => {
+      this.isSyncingPause = false;
+    }, 0);
   }
 }

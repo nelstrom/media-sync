@@ -90,6 +90,23 @@ export class MediaElementWrapperImpl implements MediaElementWrapper {
         this.element.dispatchEvent(CustomEvents.programmatic.play);
       }
     });
+
+    // Override the pause method to track if pause was programmatically triggered
+    const originalPause = this.element.pause;
+    this.element.pause = function() {
+      self.isUserInitiated = false;
+      originalPause.call(this);
+    };
+
+    // Listen for pause events and dispatch appropriate custom events
+    this.element.addEventListener("pause", () => {
+      if (this.isUserInitiated) {
+        this.element.dispatchEvent(CustomEvents.user.pause);
+      } else {
+        this.element.dispatchEvent(CustomEvents.programmatic.pause);
+      }
+      this.isUserInitiated = true;
+    });
   }
 
   /**
@@ -109,14 +126,8 @@ export class MediaElementWrapperImpl implements MediaElementWrapper {
   /**
    * Pause the media
    */
-  public async pause(): Promise<void> {
-    if (!this.isPlaying) return;
-
-    try {
-      this.element.pause();
-    } catch (error) {
-      Logger.error(`Error pausing media ${this.id}:`, error);
-    }
+  public pause(): void {
+    this.element.pause();
   }
 
   /**
