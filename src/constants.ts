@@ -23,3 +23,21 @@ export const VALID_STATE_TRANSITIONS: Record<MediaState, MediaState[]> = {
   [MediaState.BUFFERING]: [],
   [MediaState.UNSTARTED]: []
 };
+
+export const CustomEventNames = {
+  pSeeking: 'media-sync:programmatic-seeking',
+  pSeeked: 'media-sync:programmatic-seeked',
+  uSeeking: 'media-sync:user-seeking',
+  uSeeked: 'media-sync:user-seeked',
+}
+
+export const CustomEvents = {
+  programmatic: {
+    seeking: new CustomEvent(CustomEventNames.pSeeking),
+    seeked: new CustomEvent(CustomEventNames.pSeeked),
+  },
+  user: {
+    seeking: new CustomEvent(CustomEventNames.uSeeking),
+    seeked: new CustomEvent(CustomEventNames.uSeeked),
+  }
+}

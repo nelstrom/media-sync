@@ -1,11 +1,6 @@
-import { MediaState } from "./constants";
+import { CustomEvents, MediaState } from "./constants";
 import { MediaElementWrapper } from "./types";
 import { Logger } from "./utils";
-
-const programmaticSeekingEvent = new CustomEvent("programmatic-seeking");
-const programmaticSeekedEvent = new CustomEvent("programmatic-seeked");
-const userSeekingEvent = new CustomEvent("user-seeking");
-const userSeekedEvent = new CustomEvent("user-seeked");
 
 /**
  * Class that wraps and manages an individual HTML media element
@@ -39,8 +34,16 @@ export class MediaElementWrapperImpl implements MediaElementWrapper {
     this.onStateChangeCallback = options.onStateChange || (() => {});
     this.onReadyCallback = options.onReady || (() => {});
 
+    this.setupEventDispatchers();
     this.setupEventListeners();
 
+    
+  }
+
+  /**
+   * Set up custom event dispatching for the media element
+   */
+  private setupEventDispatchers(): void {
     const originalGetter = Object.getOwnPropertyDescriptor(
       HTMLMediaElement.prototype,
       "currentTime"
@@ -67,22 +70,23 @@ export class MediaElementWrapperImpl implements MediaElementWrapper {
       console.error("Failed to override currentTime property");
     }
 
-    element.addEventListener("seeking", () => {
+    this.element.addEventListener("seeking", () => {
       if (this.isUserInitiated) {
-        element.dispatchEvent(userSeekingEvent);
+        this.element.dispatchEvent(CustomEvents.user.seeking);
       } else {
-        element.dispatchEvent(programmaticSeekingEvent);
+        this.element.dispatchEvent(CustomEvents.programmatic.seeking);
       }
     });
 
-    element.addEventListener("seeked", () => {
+    this.element.addEventListener("seeked", () => {
       if (this.isUserInitiated) {
-        element.dispatchEvent(userSeekedEvent);
+        this.element.dispatchEvent(CustomEvents.user.seeked);
       } else {
-        element.dispatchEvent(programmaticSeekedEvent);
+        this.element.dispatchEvent(CustomEvents.programmatic.seeked);
       }
       this.isUserInitiated = true;
     });
+
   }
 
   /**

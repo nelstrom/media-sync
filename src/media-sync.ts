@@ -1,4 +1,4 @@
-import { MediaState } from "./constants";
+import { CustomEventNames, MediaState } from "./constants";
 import { MediaElementWrapperImpl } from "./media-element-wrapper";
 import { MediaElementWrapper } from "./types";
 import { Logger, isValidStateTransition } from "./utils";
@@ -68,16 +68,16 @@ export class MediaSync extends HTMLElement {
         onReady: this.handleElementReady.bind(this),
       });
 
-      element.addEventListener("programmatic-seeking", (e) => {
+      element.addEventListener(CustomEventNames.pSeeking, (e) => {
         console.log(index, e);
       });
-      element.addEventListener("programmatic-seeked", (e) => {
+      element.addEventListener(CustomEventNames.pSeeked, (e) => {
         console.log(index, e);
       });
-      element.addEventListener("user-seeking", (e) => {
+      element.addEventListener(CustomEventNames.uSeeking, (e) => {
         console.log(index, e);
       });
-      element.addEventListener("user-seeked", (e) => {
+      element.addEventListener(CustomEventNames.uSeeked, (e) => {
         console.log(index, e);
       });
       element.addEventListener("play", (e) => {
