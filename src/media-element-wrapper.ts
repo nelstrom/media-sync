@@ -12,32 +12,19 @@ export class MediaElementWrapperImpl implements MediaElementWrapper {
   public isPlaying: boolean = false;
   public isMain: boolean = false;
 
-  private onStateChangeCallback: (
-    state: MediaState,
-    wrapper: MediaElementWrapper
-  ) => void;
-  private onReadyCallback: (wrapper: MediaElementWrapper) => void;
   private isUserInitiated: boolean = true;
 
   constructor(
     element: HTMLMediaElement,
     options: {
       isMain?: boolean;
-      onStateChange?: (state: MediaState, wrapper: MediaElementWrapper) => void;
-      onReady?: (wrapper: MediaElementWrapper) => void;
     } = {}
   ) {
     this.id = Math.random().toString(36).substring(2, 15);
     this.element = element;
     this.isMain = options.isMain || false;
 
-    this.onStateChangeCallback = options.onStateChange || (() => {});
-    this.onReadyCallback = options.onReady || (() => {});
-
     this.setupEventDispatchers();
-    this.setupEventListeners();
-
-    
   }
 
   /**
@@ -56,7 +43,6 @@ export class MediaElementWrapperImpl implements MediaElementWrapper {
     const self = this;
 
     if (originalGetter && originalSetter) {
-
       Object.defineProperty(this.element, "currentTime", {
         get: function () {
           return originalGetter.call(this);
@@ -87,13 +73,13 @@ export class MediaElementWrapperImpl implements MediaElementWrapper {
       this.isUserInitiated = true;
     });
 
-    this.element.play = async function() {
-      self.isUserInitiated = false
+    this.element.play = async function () {
+      self.isUserInitiated = false;
       try {
         await HTMLMediaElement.prototype.play.call(this);
-        self.isUserInitiated = true
+        self.isUserInitiated = true;
       } catch (error) {
-        console.error('Error starting video playback:', error);
+        console.error("Error starting video playback:", error);
       }
     };
 
@@ -104,57 +90,6 @@ export class MediaElementWrapperImpl implements MediaElementWrapper {
         this.element.dispatchEvent(CustomEvents.programmatic.play);
       }
     });
-  }
-
-  /**
-   * Set up event listeners for the media element
-   */
-  private setupEventListeners(): void {
-    // Playback state events
-    this.element.addEventListener("play", () =>
-      this.handleStateChange(MediaState.PLAYING)
-    );
-    this.element.addEventListener("pause", () =>
-      this.handleStateChange(MediaState.PAUSED)
-    );
-    this.element.addEventListener("ended", () =>
-      this.handleStateChange(MediaState.ENDED)
-    );
-
-    // Loading events
-    this.element.addEventListener("loadeddata", () => this.handleReady());
-    this.element.addEventListener("canplaythrough", () =>
-      this.handleStateChange(MediaState.UNSTARTED)
-    );
-    this.element.addEventListener("waiting", () =>
-      this.handleStateChange(MediaState.BUFFERING)
-    );
-  }
-
-  /**
-   * Handle media state changes
-   */
-  private handleStateChange(state: MediaState): void {
-    this.state = state;
-
-    if (state === MediaState.PLAYING) {
-      this.isPlaying = true;
-    }
-
-    if (state === MediaState.PAUSED || state === MediaState.ENDED) {
-      this.isPlaying = false;
-    }
-
-    Logger.debug(`${this.id} state changed to: ${state}`);
-    this.onStateChangeCallback(state, this);
-  }
-
-  /**
-   * Handle when the media is ready to play
-   */
-  private handleReady(): void {
-    Logger.debug(`${this.id} is ready`);
-    this.onReadyCallback(this);
   }
 
   /**
