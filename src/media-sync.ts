@@ -68,25 +68,25 @@ export class MediaSync extends HTMLElement {
         onReady: this.handleElementReady.bind(this),
       });
 
-      element.addEventListener(CustomEventNames.pSeeking, (e) => {
+      element.addEventListener(CustomEventNames.programmatic.seeking, (e) => {
         console.log(index, e);
       });
-      element.addEventListener(CustomEventNames.pSeeked, (e) => {
+      element.addEventListener(CustomEventNames.programmatic.seeked, (e) => {
         console.log(index, e);
       });
-      element.addEventListener(CustomEventNames.uSeeking, (e) => {
+      element.addEventListener(CustomEventNames.user.seeking, (e) => {
         console.log(index, e);
       });
-      element.addEventListener(CustomEventNames.uSeeked, (e) => {
+      element.addEventListener(CustomEventNames.user.seeked, (e) => {
         console.log(index, e);
       });
       element.addEventListener("play", (e) => {
         console.log(index, e);
       });
-      element.addEventListener(CustomEventNames.uPlay, (e) => {
+      element.addEventListener(CustomEventNames.user.play, (e) => {
         console.log(index, e);
       });
-      element.addEventListener(CustomEventNames.pPlay, (e) => {
+      element.addEventListener(CustomEventNames.programmatic.play, (e) => {
         console.log(index, e);
       });
 

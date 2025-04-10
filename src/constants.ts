@@ -2,13 +2,13 @@
  * Enum representing the possible states of the media elements
  */
 export enum MediaState {
-  UNSTARTED = 'UNSTARTED',
-  ENDED = 'ENDED',
-  PLAYING = 'PLAYING',
-  PAUSED = 'PAUSED',
-  BUFFERING = 'BUFFERING',
-  LOADING = 'LOADING',
-  LOADED = 'LOADED'
+  UNSTARTED = "UNSTARTED",
+  ENDED = "ENDED",
+  PLAYING = "PLAYING",
+  PAUSED = "PAUSED",
+  BUFFERING = "BUFFERING",
+  LOADING = "LOADING",
+  LOADED = "LOADED",
 }
 
 /**
@@ -21,27 +21,31 @@ export const VALID_STATE_TRANSITIONS: Record<MediaState, MediaState[]> = {
   [MediaState.PAUSED]: [MediaState.PLAYING, MediaState.ENDED],
   [MediaState.ENDED]: [MediaState.PLAYING],
   [MediaState.BUFFERING]: [],
-  [MediaState.UNSTARTED]: []
+  [MediaState.UNSTARTED]: [],
 };
 
 export const CustomEventNames = {
-  pSeeking: 'media-sync:programmatic-seeking',
-  pSeeked: 'media-sync:programmatic-seeked',
-  pPlay: 'media-sync:programmatic-play',
-  uSeeking: 'media-sync:user-seeking',
-  uSeeked: 'media-sync:user-seeked',
-  uPlay: 'media-sync:user-play',
-}
+  programmatic: {
+    seeking: "media-sync:programmatic:seeking",
+    seeked: "media-sync:programmatic:seeked",
+    play: "media-sync:programmatic:play",
+  },
+  user: {
+    seeking: "media-sync:user:seeking",
+    seeked: "media-sync:user:seeked",
+    play: "media-sync:user:play",
+  },
+};
 
 export const CustomEvents = {
   programmatic: {
-    seeking: new CustomEvent(CustomEventNames.pSeeking),
-    seeked: new CustomEvent(CustomEventNames.pSeeked),
-    play: new CustomEvent(CustomEventNames.pPlay),
+    seeking: new CustomEvent(CustomEventNames.programmatic.seeking),
+    seeked: new CustomEvent(CustomEventNames.programmatic.seeked),
+    play: new CustomEvent(CustomEventNames.programmatic.play),
   },
   user: {
-    seeking: new CustomEvent(CustomEventNames.uSeeking),
-    seeked: new CustomEvent(CustomEventNames.uSeeked),
-    play: new CustomEvent(CustomEventNames.uPlay),
-  }
-}
+    seeking: new CustomEvent(CustomEventNames.user.seeking),
+    seeked: new CustomEvent(CustomEventNames.user.seeked),
+    play: new CustomEvent(CustomEventNames.user.play),
+  },
+};
