@@ -2,11 +2,10 @@ import { MediaState } from "./constants";
 import { MediaElementWrapper } from "./types";
 import { Logger } from "./utils";
 
-
-const programmaticSeekingEvent = new CustomEvent('programmatic-seeking');
-const programmaticSeekedEvent = new CustomEvent('programmatic-seeked');
-const userSeekingEvent = new CustomEvent('user-seeking');
-const userSeekedEvent = new CustomEvent('user-seeked');
+const programmaticSeekingEvent = new CustomEvent("programmatic-seeking");
+const programmaticSeekedEvent = new CustomEvent("programmatic-seeked");
+const userSeekingEvent = new CustomEvent("user-seeking");
+const userSeekedEvent = new CustomEvent("user-seeked");
 
 /**
  * Class that wraps and manages an individual HTML media element
@@ -41,19 +40,25 @@ export class MediaElementWrapperImpl implements MediaElementWrapper {
     this.onReadyCallback = options.onReady || (() => {});
 
     this.setupEventListeners();
-    
-    const originalGetter = Object.getOwnPropertyDescriptor(HTMLMediaElement.prototype, 'currentTime')?.get;
-    const originalSetter = Object.getOwnPropertyDescriptor(HTMLMediaElement.prototype, 'currentTime')?.set;
+
+    const originalGetter = Object.getOwnPropertyDescriptor(
+      HTMLMediaElement.prototype,
+      "currentTime"
+    )?.get;
+    const originalSetter = Object.getOwnPropertyDescriptor(
+      HTMLMediaElement.prototype,
+      "currentTime"
+    )?.set;
 
     if (originalGetter && originalSetter) {
       // Store reference to 'this' for closure
       const self = this;
-      
+
       Object.defineProperty(this.element, "currentTime", {
-        get: function() {
+        get: function () {
           return originalGetter.call(this);
         },
-        set: function(value) {
+        set: function (value) {
           self.isUserInitiated = false;
           originalSetter.call(this, value);
         },
@@ -62,22 +67,22 @@ export class MediaElementWrapperImpl implements MediaElementWrapper {
       console.error("Failed to override currentTime property");
     }
 
-    element.addEventListener('seeking', () => {
+    element.addEventListener("seeking", () => {
       if (this.isUserInitiated) {
         element.dispatchEvent(userSeekingEvent);
       } else {
         element.dispatchEvent(programmaticSeekingEvent);
       }
-    })
-    
-    element.addEventListener('seeked', () => {
+    });
+
+    element.addEventListener("seeked", () => {
       if (this.isUserInitiated) {
         element.dispatchEvent(userSeekedEvent);
       } else {
         element.dispatchEvent(programmaticSeekedEvent);
       }
       this.isUserInitiated = true;
-    })
+    });
   }
 
   /**
@@ -135,6 +140,7 @@ export class MediaElementWrapperImpl implements MediaElementWrapper {
    * Play the media
    */
   public async play(): Promise<void> {
+    console.log("play", this.id);
     if (this.isPlaying) return;
 
     try {

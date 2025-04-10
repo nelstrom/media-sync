@@ -80,6 +80,10 @@ export class MediaSync extends HTMLElement {
       element.addEventListener("user-seeked", (e) => {
         console.log(index, e);
       });
+      element.addEventListener("play", (e) => {
+        console.log(index, e);
+        this.playAll();
+      });
 
       this.mediaElements.push(wrapper);
 
@@ -179,6 +183,7 @@ export class MediaSync extends HTMLElement {
    * Play all media elements
    */
   public async playAll(): Promise<void> {
+    console.log("playAll");
     await this.moveToState(MediaState.PLAYING, async () => {
       this.seekAll(this.currentTime);
 
