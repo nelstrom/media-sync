@@ -82,7 +82,12 @@ export class MediaSync extends HTMLElement {
       });
       element.addEventListener("play", (e) => {
         console.log(index, e);
-        this.playAll();
+      });
+      element.addEventListener(CustomEventNames.uPlay, (e) => {
+        console.log(index, e);
+      });
+      element.addEventListener(CustomEventNames.pPlay, (e) => {
+        console.log(index, e);
       });
 
       this.mediaElements.push(wrapper);

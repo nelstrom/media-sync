@@ -52,10 +52,10 @@ export class MediaElementWrapperImpl implements MediaElementWrapper {
       HTMLMediaElement.prototype,
       "currentTime"
     )?.set;
+    // Store reference to 'this' for closure
+    const self = this;
 
     if (originalGetter && originalSetter) {
-      // Store reference to 'this' for closure
-      const self = this;
 
       Object.defineProperty(this.element, "currentTime", {
         get: function () {
@@ -87,6 +87,23 @@ export class MediaElementWrapperImpl implements MediaElementWrapper {
       this.isUserInitiated = true;
     });
 
+    this.element.play = async function() {
+      self.isUserInitiated = false
+      try {
+        await HTMLMediaElement.prototype.play.call(this);
+        self.isUserInitiated = true
+      } catch (error) {
+        console.error('Error starting video playback:', error);
+      }
+    };
+
+    this.element.addEventListener("play", () => {
+      if (this.isUserInitiated) {
+        this.element.dispatchEvent(CustomEvents.user.play);
+      } else {
+        this.element.dispatchEvent(CustomEvents.programmatic.play);
+      }
+    });
   }
 
   /**

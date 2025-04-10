@@ -27,17 +27,21 @@ export const VALID_STATE_TRANSITIONS: Record<MediaState, MediaState[]> = {
 export const CustomEventNames = {
   pSeeking: 'media-sync:programmatic-seeking',
   pSeeked: 'media-sync:programmatic-seeked',
+  pPlay: 'media-sync:programmatic-play',
   uSeeking: 'media-sync:user-seeking',
   uSeeked: 'media-sync:user-seeked',
+  uPlay: 'media-sync:user-play',
 }
 
 export const CustomEvents = {
   programmatic: {
     seeking: new CustomEvent(CustomEventNames.pSeeking),
     seeked: new CustomEvent(CustomEventNames.pSeeked),
+    play: new CustomEvent(CustomEventNames.pPlay),
   },
   user: {
     seeking: new CustomEvent(CustomEventNames.uSeeking),
     seeked: new CustomEvent(CustomEventNames.uSeeked),
+    play: new CustomEvent(CustomEventNames.uPlay),
   }
 }
