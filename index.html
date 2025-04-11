@@ -56,6 +56,34 @@
       }
     }
     
+    /* Mixed example (video + audio) styles */
+    .mixed-example media-sync {
+      flex-direction: column;
+    }
+    
+    .mixed-example .audio-tracks {
+      display: flex;
+      flex-direction: column;
+      gap: 1rem;
+      width: 100%;
+    }
+    
+    @media (min-width: 992px) {
+      .mixed-example media-sync {
+        flex-direction: row;
+        align-items: flex-start;
+      }
+      
+      .mixed-example .video-container {
+        width: 65%;
+      }
+      
+      .mixed-example .audio-tracks {
+        width: 35%;
+        padding-left: 1.5rem;
+      }
+    }
+    
     audio {
       width: 100%;
     }
@@ -71,6 +99,10 @@
       font-weight: bold;
       margin-bottom: 0.5rem;
       text-align: center;
+    }
+    
+    .mixed-example .track-label {
+      text-align: left;
     }
     
     .section {
@@ -149,6 +181,49 @@
             <source src="samples/retirement-song/RetirementSong-bass.MP4" type="video/mp4">
             Your browser does not support the video element.
           </video>
+        </div>
+      </media-sync>
+    </div>
+  </div>
+  
+  <div class="section mixed-example">
+    <h2>Mixed Media Example</h2>
+    <p class="description">This example demonstrates synchronization between video and audio tracks. The main video shows all parts together (muted by default) with individual audio tracks synchronized with it.</p>
+    
+    <div class="demo-container">
+      <media-sync>
+        <div class="video-container">
+          <div class="track-label">All Parts Video</div>
+          <video controls muted>
+            <source src="samples/retirement-song/RetirementSong-all-parts.MP4" type="video/mp4">
+            Your browser does not support the video element.
+          </video>
+        </div>
+        
+        <div class="audio-tracks">
+          <div>
+            <div class="track-label">Melody Audio</div>
+            <audio controls>
+              <source src="samples/retirement-song/RetirementSong-melody.m4a" type="audio/mp4">
+              Your browser does not support the audio element.
+            </audio>
+          </div>
+          
+          <div>
+            <div class="track-label">Descant Audio</div>
+            <audio controls>
+              <source src="samples/retirement-song/RetirementSong-descant.m4a" type="audio/mp4">
+              Your browser does not support the audio element.
+            </audio>
+          </div>
+          
+          <div>
+            <div class="track-label">Bass Audio</div>
+            <audio controls>
+              <source src="samples/retirement-song/RetirementSong-bass.m4a" type="audio/mp4">
+              Your browser does not support the audio element.
+            </audio>
+          </div>
         </div>
       </media-sync>
     </div>
