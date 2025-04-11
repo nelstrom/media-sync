@@ -142,23 +142,31 @@ describe("MediaSync", () => {
 
   describe("programmatic actions on media elements", () => {
     it("should call play() when a programmatic play event is triggered", () => {
-      // Create element with one video
+      // Create element with two videos
       mediaSyncElement = document.createElement("media-sync") as MediaSync;
-      const videoElement = document.createElement("video");
-      mediaSyncElement.appendChild(videoElement);
+      const video1 = document.createElement("video");
+      const video2 = document.createElement("video");
+
+      // Create spy functions for play
+      const playFn1 = vi.fn().mockResolvedValue(undefined);
+      const playFn2 = vi.fn().mockResolvedValue(undefined);
+      video1.play = playFn1;
+      video2.play = playFn2;
+
+      mediaSyncElement.appendChild(video1);
+      mediaSyncElement.appendChild(video2);
       document.body.appendChild(mediaSyncElement);
 
-      // Mock the MediaSync play method
-      const playSpy = vi
-        .spyOn(mediaSyncElement, "play")
-        .mockImplementation(() => Promise.resolve());
-
-      // Initialize and trigger programmatic play event
+      // Initialize and reset mocks before testing
       mediaSyncElement.initialize();
-      videoElement.dispatchEvent(CustomEvents.programmatic.play);
+      vi.clearAllMocks();
 
-      // Verify play was called at least once
-      expect(playSpy).toHaveBeenCalled();
+      // Dispatch user play event on video1
+      video1.dispatchEvent(CustomEvents.programmatic.play);
+
+      // Verify video2 play was called, but not video1 again
+      expect(playFn1).not.toHaveBeenCalled();
+      expect(playFn2).toHaveBeenCalled();
     });
 
     it("should call pause() when a programmatic pause event is triggered", () => {
