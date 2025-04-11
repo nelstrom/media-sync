@@ -81,7 +81,9 @@ export class MediaSync extends HTMLElement {
         // Schedule the actual sync with a small delay to capture the final position
         setTimeout(() => {
           if (this.lastSeekTime !== null) {
-            this.syncSeekTracks(element, this.lastSeekTime);
+            // Get all tracks except the source and seek them
+            const targetTracks = this.otherTracks(element);
+            this.seekTracks(targetTracks, this.lastSeekTime);
           }
         }, SEEK_DEBOUNCE_DELAY);
       }, SEEK_DEBOUNCE_DELAY);
@@ -89,11 +91,9 @@ export class MediaSync extends HTMLElement {
       // Handle programmatic seeking events
       element.addEventListener(CustomEventNames.programmatic.seeking, () => {
         Logger.debug(`Programmatic seeking event from element ${index}`);
-        
-        // No need to sync if we're already in a sync operation
-        if (this.isSyncingSeeking) return;
-        
-        this.syncSeekTracks(element, element.currentTime);
+        // Get all tracks except the source and seek them
+        const targetTracks = this.otherTracks(element);
+        this.seekTracks(targetTracks, element.currentTime);
       });
       
       // Handle user-initiated seeking
@@ -143,30 +143,29 @@ export class MediaSync extends HTMLElement {
   }
 
   /**
-   * Synchronize seeking across all media elements
-   * @param sourceElement The element that initiated the seek
-   * @param targetTime The time to seek to
+   * Seek a set of media elements to a specific time
+   * @param mediaElements The media elements to seek (defaults to all elements)
+   * @param time The time to seek to
    */
-  private syncSeekTracks(sourceElement: HTMLMediaElement, targetTime: number): void {
-    const targetTracks = this.otherTracks(sourceElement);
-    
-    if (targetTracks.length === 0) {
+  private seekTracks(mediaElements = this.mediaElements, time: number): void {
+    if (mediaElements.length === 0) {
+      Logger.error("No media elements available to seek");
       return;
     }
     
     if (this.isSyncingSeeking) {
-      Logger.debug("syncSeekTracks called while syncing. Skipping...");
+      Logger.debug("seekTracks called while syncing. Skipping...");
       return;
     }
     
-    Logger.debug(`MediaSync: Syncing seek to ${targetTime}s for ${targetTracks.length} media elements`);
+    Logger.debug(`MediaSync: Seeking ${mediaElements.length} media elements to ${time}s`);
     
     // Set flag to prevent infinite loops from programmatic seeking events
     this.isSyncingSeeking = true;
     
-    // Sync the time on all other media elements
-    targetTracks.forEach(media => {
-      media.seekTo(targetTime);
+    // Seek all specified media elements
+    mediaElements.forEach(media => {
+      media.seekTo(time);
     });
     
     // Reset flag after a short delay to prevent race conditions
@@ -274,24 +273,7 @@ export class MediaSync extends HTMLElement {
    * Set the current playback time for all media elements
    */
   public set currentTime(time: number) {
-    if (this.mediaElements.length === 0) {
-      Logger.error("No media elements available to set currentTime");
-      return;
-    }
-    
-    Logger.debug(`MediaSync: Setting currentTime of all media elements to ${time}s`);
-    
-    // Set flag to prevent infinite loops
-    this.isSyncingSeeking = true;
-    
-    // Seek all media elements
-    this.mediaElements.forEach(media => {
-      media.seekTo(time);
-    });
-    
-    // Reset flag after seeking is complete
-    setTimeout(() => {
-      this.isSyncingSeeking = false;
-    }, SEEK_DEBOUNCE_DELAY * 2);
+    // Use the seekTracks method to handle the seeking
+    this.seekTracks(this.mediaElements, time);
   }
 }
