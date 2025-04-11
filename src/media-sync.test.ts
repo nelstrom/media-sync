@@ -170,23 +170,31 @@ describe("MediaSync", () => {
     });
 
     it("should call pause() when a programmatic pause event is triggered", () => {
-      // Create element with one video
+      // Create element with two videos
       mediaSyncElement = document.createElement("media-sync") as MediaSync;
-      const videoElement = document.createElement("video");
-      mediaSyncElement.appendChild(videoElement);
+      const video1 = document.createElement("video");
+      const video2 = document.createElement("video");
+
+      // Create spy functions for pause
+      const pauseFn1 = vi.fn();
+      const pauseFn2 = vi.fn();
+      video1.pause = pauseFn1;
+      video2.pause = pauseFn2;
+
+      mediaSyncElement.appendChild(video1);
+      mediaSyncElement.appendChild(video2);
       document.body.appendChild(mediaSyncElement);
 
-      // Mock the MediaSync pause method
-      const pauseSpy = vi
-        .spyOn(mediaSyncElement, "pause")
-        .mockImplementation(() => {});
-
-      // Initialize and trigger programmatic pause event
+      // Initialize and reset mocks before testing
       mediaSyncElement.initialize();
-      videoElement.dispatchEvent(CustomEvents.programmatic.pause);
+      vi.clearAllMocks();
 
-      // Verify pause was called at least once
-      expect(pauseSpy).toHaveBeenCalled();
+      // Dispatch user pause event on video1
+      video1.dispatchEvent(CustomEvents.programmatic.pause);
+
+      // Verify video2 pause was called, but not video1 again
+      expect(pauseFn1).not.toHaveBeenCalled();
+      expect(pauseFn2).toHaveBeenCalled();
     });
   });
 

@@ -103,21 +103,14 @@ export class MediaSync extends HTMLElement {
         Logger.debug(`User pause event from element ${index}`);
 
         // Pause all other media elements
-        this.mediaElements.forEach((mediaWrapper) => {
-          if (mediaWrapper.element !== element) {
-            mediaWrapper.pause();
-          }
-        });
+        this.pauseTracks(this.otherTracks(element));
       });
 
       // Handle programmatic pause events
       element.addEventListener(CustomEventNames.programmatic.pause, () => {
         Logger.debug(`Programmatic pause event from element ${index}`);
 
-        // Only respond if we're not currently in the process of syncing pause
-        if (!this.isSyncingPause) {
-          this.pause();
-        }
+        this.pauseTracks(this.otherTracks(element));
       });
 
       this.mediaElements.push(wrapper);
@@ -174,9 +167,18 @@ export class MediaSync extends HTMLElement {
   /**
    * Pause all media elements
    */
-  public pause(): void {
-    if (this.mediaElements.length === 0) {
+  pause(): void {
+    this.pauseTracks();
+  }
+
+  private pauseTracks(mediaElements = this.mediaElements): void {
+    if (mediaElements.length === 0) {
       Logger.error("No media elements available to pause");
+      return;
+    }
+
+    if (this.isSyncingPause) {
+      Logger.debug("pauseTracks called while syncing. Skipping...");
       return;
     }
 
@@ -186,7 +188,7 @@ export class MediaSync extends HTMLElement {
     this.isSyncingPause = true;
 
     // Pause all media elements - this is synchronous
-    this.mediaElements.forEach((media) => media.pause());
+    mediaElements.forEach((media) => media.pause());
 
     // Reset flag after pausing is complete
     // Use setTimeout to ensure this runs after the current execution cycle
