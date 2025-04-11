@@ -31,12 +31,12 @@ The `<media-sync>` element works on the assumption that all provided tracks have
 
 ## Challenges
 
-- [ ] play/pause any track causes all tracks to play/pause
-- [ ] while playing: manually scrubbing any track causes all tracks to scrub
-- [ ] while paused: manually scrubbing any track causes all tracks to scrub
-- [ ] setting `currentTime` on any track causes all tracks to sync to that timestamp
+- [X] play/pause any track causes all tracks to play/pause
+- [X] while playing: manually scrubbing any track causes all tracks to scrub
+- [X] while paused: manually scrubbing any track causes all tracks to scrub
+- [X] setting `currentTime` on any track causes all tracks to sync to that timestamp
 - [ ] periodically check deltas and re-sync to correct any drift
-- [ ] give media-sync element a similar interface to media elements (play, pause, currentTime)
+- [X] give media-sync element a similar interface to media elements (play, pause, currentTime)
 
 ### sync-video-player inspired approach
 
