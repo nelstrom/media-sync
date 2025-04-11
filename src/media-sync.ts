@@ -3,6 +3,9 @@ import { MediaElementWrapperImpl } from "./media-element-wrapper";
 import { MediaElementWrapper } from "./types";
 import { Logger, debounce } from "./utils";
 
+// Debounce delay for seeking events (in milliseconds)
+const SEEK_DEBOUNCE_DELAY = 10;
+
 /**
  * MediaSync class that manages and synchronizes multiple media elements
  */
@@ -14,9 +17,6 @@ export class MediaSync extends HTMLElement {
   
   // Store the last seek time
   private lastSeekTime: number | null = null;
-  
-  // Debounce delay for seeking events (in milliseconds)
-  private readonly SEEK_DEBOUNCE_DELAY = 50;
 
   constructor() {
     super();
@@ -83,8 +83,8 @@ export class MediaSync extends HTMLElement {
           if (this.lastSeekTime !== null) {
             this.syncSeekTracks(element, this.lastSeekTime);
           }
-        }, this.SEEK_DEBOUNCE_DELAY);
-      }, this.SEEK_DEBOUNCE_DELAY);
+        }, SEEK_DEBOUNCE_DELAY);
+      }, SEEK_DEBOUNCE_DELAY);
       
       // Handle programmatic seeking events
       element.addEventListener(CustomEventNames.programmatic.seeking, () => {
@@ -172,7 +172,7 @@ export class MediaSync extends HTMLElement {
     // Reset flag after a short delay to prevent race conditions
     setTimeout(() => {
       this.isSyncingSeeking = false;
-    }, this.SEEK_DEBOUNCE_DELAY * 2);
+    }, SEEK_DEBOUNCE_DELAY * 2);
   }
 
   /**
@@ -252,16 +252,34 @@ export class MediaSync extends HTMLElement {
   }
   
   /**
-   * Seek all media elements to a specific time
-   * @param time The time to seek to in seconds
+   * Get the current playback time of the main media element
    */
-  public seekAll(time: number): void {
+  public get currentTime(): number {
     if (this.mediaElements.length === 0) {
-      Logger.error("No media elements available to seek");
+      Logger.error("No media elements available to get currentTime");
+      return 0;
+    }
+    
+    // Return the currentTime of the first (main) media element
+    const mainElement = this.mediaElements.find(media => media.isMain);
+    
+    if (mainElement) {
+      return mainElement.element.currentTime;
+    }
+    
+    return this.mediaElements[0].element.currentTime;
+  }
+  
+  /**
+   * Set the current playback time for all media elements
+   */
+  public set currentTime(time: number) {
+    if (this.mediaElements.length === 0) {
+      Logger.error("No media elements available to set currentTime");
       return;
     }
     
-    Logger.debug(`MediaSync: Seeking all media elements to ${time}s`);
+    Logger.debug(`MediaSync: Setting currentTime of all media elements to ${time}s`);
     
     // Set flag to prevent infinite loops
     this.isSyncingSeeking = true;
@@ -274,6 +292,6 @@ export class MediaSync extends HTMLElement {
     // Reset flag after seeking is complete
     setTimeout(() => {
       this.isSyncingSeeking = false;
-    }, this.SEEK_DEBOUNCE_DELAY * 2);
+    }, SEEK_DEBOUNCE_DELAY * 2);
   }
 }

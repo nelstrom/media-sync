@@ -336,7 +336,31 @@ describe("MediaSync", () => {
       expect(pauseFn2).toHaveBeenCalled();
     });
     
-    it("should synchronize all media elements when seekAll() is called", () => {
+    it("should get the currentTime from the main media element", () => {
+      // Create element with three videos
+      mediaSyncElement = document.createElement("media-sync") as MediaSync;
+      const video1 = document.createElement("video");
+      const video2 = document.createElement("video");
+      const video3 = document.createElement("video");
+      
+      mediaSyncElement.appendChild(video1);
+      mediaSyncElement.appendChild(video2);
+      mediaSyncElement.appendChild(video3);
+      document.body.appendChild(mediaSyncElement);
+      
+      // Initialize and setup test
+      mediaSyncElement.initialize();
+      
+      // Set different times for each video
+      video1.currentTime = 25; // First video is the main one by default
+      video2.currentTime = 30;
+      video3.currentTime = 35;
+      
+      // The currentTime getter should return the time of the main element (first one)
+      expect(mediaSyncElement.currentTime).toBe(25);
+    });
+    
+    it("should synchronize all media elements when currentTime is set", () => {
       // Create element with three videos
       mediaSyncElement = document.createElement("media-sync") as MediaSync;
       const video1 = document.createElement("video");
@@ -366,8 +390,8 @@ describe("MediaSync", () => {
       video2.currentTime = 20;
       video3.currentTime = 30;
       
-      // Call seekAll to sync all videos to 50 seconds
-      mediaSyncElement.seekAll(50);
+      // Set currentTime to sync all videos to 50 seconds
+      mediaSyncElement.currentTime = 50;
       
       // All videos should be at the target time
       expect(video1.currentTime).toBe(50);
