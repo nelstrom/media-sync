@@ -1,7 +1,7 @@
 import { CustomEventNames } from "./constants";
 import { MediaElementWrapperImpl } from "./media-element-wrapper";
 import { MediaElementWrapper } from "./types";
-import { Logger } from "./utils";
+import { Logger, debounce } from "./utils";
 
 /**
  * MediaSync class that manages and synchronizes multiple media elements
@@ -10,6 +10,13 @@ export class MediaSync extends HTMLElement {
   private mediaElements: MediaElementWrapper[] = [];
   private isSyncingPlay: boolean = false;
   private isSyncingPause: boolean = false;
+  private isSyncingSeeking: boolean = false;
+  
+  // Store the last seek time
+  private lastSeekTime: number | null = null;
+  
+  // Debounce delay for seeking events (in milliseconds)
+  private readonly SEEK_DEBOUNCE_DELAY = 50;
 
   constructor() {
     super();
@@ -64,52 +71,66 @@ export class MediaSync extends HTMLElement {
         isMain,
       });
 
-      element.addEventListener(CustomEventNames.programmatic.seeking, (e) => {
-        console.log(index, e);
+      // Handle user-initiated seeking events with debouncing
+      const handleUserSeeking = debounce(() => {
+        Logger.debug(`User seeking event from element ${index}`);
+        
+        // Store the time for reference
+        this.lastSeekTime = element.currentTime;
+        
+        // Schedule the actual sync with a small delay to capture the final position
+        setTimeout(() => {
+          if (this.lastSeekTime !== null) {
+            this.syncSeekTracks(element, this.lastSeekTime);
+          }
+        }, this.SEEK_DEBOUNCE_DELAY);
+      }, this.SEEK_DEBOUNCE_DELAY);
+      
+      // Handle programmatic seeking events
+      element.addEventListener(CustomEventNames.programmatic.seeking, () => {
+        Logger.debug(`Programmatic seeking event from element ${index}`);
+        
+        // No need to sync if we're already in a sync operation
+        if (this.isSyncingSeeking) return;
+        
+        this.syncSeekTracks(element, element.currentTime);
       });
-      element.addEventListener(CustomEventNames.programmatic.seeked, (e) => {
-        console.log(index, e);
+      
+      // Handle user-initiated seeking
+      element.addEventListener(CustomEventNames.user.seeking, () => {
+        handleUserSeeking();
       });
-      element.addEventListener(CustomEventNames.user.seeking, (e) => {
-        console.log(index, e);
+
+      // Log seeked events
+      element.addEventListener(CustomEventNames.programmatic.seeked, () => {
+        Logger.debug(`Programmatic seeked event from element ${index}`);
       });
-      element.addEventListener(CustomEventNames.user.seeked, (e) => {
-        console.log(index, e);
-      });
-      element.addEventListener("play", (e) => {
-        console.log(index, e);
-      });
-      element.addEventListener("pause", (e) => {
-        console.log(index, e);
+      
+      element.addEventListener(CustomEventNames.user.seeked, () => {
+        Logger.debug(`User seeked event from element ${index}`);
       });
 
       // Handle user-initiated play events
       element.addEventListener(CustomEventNames.user.play, () => {
         Logger.debug(`User play event from element ${index}`);
-
-        // Play all other media elements
         this.playTracks(this.otherTracks(element));
       });
 
       // Handle programmatic play events
       element.addEventListener(CustomEventNames.programmatic.play, () => {
         Logger.debug(`Programmatic play event from element ${index}`);
-
         this.playTracks(this.otherTracks(element));
       });
 
       // Handle user-initiated pause events
       element.addEventListener(CustomEventNames.user.pause, () => {
         Logger.debug(`User pause event from element ${index}`);
-
-        // Pause all other media elements
         this.pauseTracks(this.otherTracks(element));
       });
 
       // Handle programmatic pause events
       element.addEventListener(CustomEventNames.programmatic.pause, () => {
         Logger.debug(`Programmatic pause event from element ${index}`);
-
         this.pauseTracks(this.otherTracks(element));
       });
 
@@ -119,6 +140,39 @@ export class MediaSync extends HTMLElement {
         Logger.debug(`Set element ${index} as main media element`);
       }
     });
+  }
+
+  /**
+   * Synchronize seeking across all media elements
+   * @param sourceElement The element that initiated the seek
+   * @param targetTime The time to seek to
+   */
+  private syncSeekTracks(sourceElement: HTMLMediaElement, targetTime: number): void {
+    const targetTracks = this.otherTracks(sourceElement);
+    
+    if (targetTracks.length === 0) {
+      return;
+    }
+    
+    if (this.isSyncingSeeking) {
+      Logger.debug("syncSeekTracks called while syncing. Skipping...");
+      return;
+    }
+    
+    Logger.debug(`MediaSync: Syncing seek to ${targetTime}s for ${targetTracks.length} media elements`);
+    
+    // Set flag to prevent infinite loops from programmatic seeking events
+    this.isSyncingSeeking = true;
+    
+    // Sync the time on all other media elements
+    targetTracks.forEach(media => {
+      media.seekTo(targetTime);
+    });
+    
+    // Reset flag after a short delay to prevent race conditions
+    setTimeout(() => {
+      this.isSyncingSeeking = false;
+    }, this.SEEK_DEBOUNCE_DELAY * 2);
   }
 
   /**
@@ -167,7 +221,7 @@ export class MediaSync extends HTMLElement {
   /**
    * Pause all media elements
    */
-  pause(): void {
+  public pause(): void {
     this.pauseTracks();
   }
 
@@ -195,5 +249,31 @@ export class MediaSync extends HTMLElement {
     setTimeout(() => {
       this.isSyncingPause = false;
     }, 0);
+  }
+  
+  /**
+   * Seek all media elements to a specific time
+   * @param time The time to seek to in seconds
+   */
+  public seekAll(time: number): void {
+    if (this.mediaElements.length === 0) {
+      Logger.error("No media elements available to seek");
+      return;
+    }
+    
+    Logger.debug(`MediaSync: Seeking all media elements to ${time}s`);
+    
+    // Set flag to prevent infinite loops
+    this.isSyncingSeeking = true;
+    
+    // Seek all media elements
+    this.mediaElements.forEach(media => {
+      media.seekTo(time);
+    });
+    
+    // Reset flag after seeking is complete
+    setTimeout(() => {
+      this.isSyncingSeeking = false;
+    }, this.SEEK_DEBOUNCE_DELAY * 2);
   }
 }

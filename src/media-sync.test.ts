@@ -1,6 +1,16 @@
 import { afterEach, beforeAll, describe, expect, it, vi } from "vitest";
 import { CustomEvents } from "./constants";
 import { MediaSync } from "./media-sync";
+import { MediaElementWrapper } from "./types";
+
+// Mock the debounce utility to execute immediately in tests
+vi.mock("./utils", async (importOriginal) => {
+  const originalModule = await importOriginal<typeof import("./utils")>();
+  return {
+    ...originalModule,
+    debounce: vi.fn().mockImplementation((fn) => fn)
+  };
+});
 
 // Mock the MediaElementWrapper implementation
 vi.mock("./media-element-wrapper", () => {
@@ -19,10 +29,12 @@ vi.mock("./media-element-wrapper", () => {
         pause: vi.fn().mockImplementation(() => {
           element.pause();
         }),
-        getCurrentTime: vi.fn().mockReturnValue(0),
+        getCurrentTime: vi.fn().mockImplementation(() => element.currentTime),
         getDuration: vi.fn().mockReturnValue(100),
         isEnded: vi.fn().mockReturnValue(false),
-        seekTo: vi.fn(),
+        seekTo: vi.fn().mockImplementation((time) => {
+          element.currentTime = time;
+        }),
       })),
   };
 });
@@ -138,6 +150,48 @@ describe("MediaSync", () => {
       expect(pauseFn1).not.toHaveBeenCalled();
       expect(pauseFn2).toHaveBeenCalled();
     });
+
+    it("should sync seek position when user triggers seeking on one element", () => {
+      // Setup fake timers
+      vi.useFakeTimers();
+      
+      // Create element with two videos
+      mediaSyncElement = document.createElement("media-sync") as MediaSync;
+      const video1 = document.createElement("video");
+      const video2 = document.createElement("video");
+      
+      mediaSyncElement.appendChild(video1);
+      mediaSyncElement.appendChild(video2);
+      document.body.appendChild(mediaSyncElement);
+      
+      // Initialize and setup test
+      mediaSyncElement.initialize();
+      
+      // Access the MediaElementWrapper instances to properly mock them
+      const mediaElements = (mediaSyncElement as any).mediaElements;
+      
+      // Set up a proper mock for seekTo that actually updates the time
+      mediaElements.forEach((wrapper: MediaElementWrapper) => {
+        wrapper.seekTo = vi.fn((time: number) => {
+          wrapper.element.currentTime = time;
+        });
+      });
+      
+      // Set video1 to a new time
+      video1.currentTime = 30;
+      
+      // Dispatch user seeking event on video1
+      video1.dispatchEvent(CustomEvents.user.seeking);
+      
+      // Advance all timers to trigger the debounce callback
+      vi.runAllTimers();
+      
+      // Since we've advanced the timers, video2 should be synced now
+      expect(video2.currentTime).toBe(30);
+      
+      // Restore real timers
+      vi.useRealTimers();
+    });
   });
 
   describe("programmatic actions on media elements", () => {
@@ -161,7 +215,7 @@ describe("MediaSync", () => {
       mediaSyncElement.initialize();
       vi.clearAllMocks();
 
-      // Dispatch user play event on video1
+      // Dispatch programmatic play event on video1
       video1.dispatchEvent(CustomEvents.programmatic.play);
 
       // Verify video2 play was called, but not video1 again
@@ -189,12 +243,45 @@ describe("MediaSync", () => {
       mediaSyncElement.initialize();
       vi.clearAllMocks();
 
-      // Dispatch user pause event on video1
+      // Dispatch programmatic pause event on video1
       video1.dispatchEvent(CustomEvents.programmatic.pause);
 
       // Verify video2 pause was called, but not video1 again
       expect(pauseFn1).not.toHaveBeenCalled();
       expect(pauseFn2).toHaveBeenCalled();
+    });
+    
+    it("should sync seek position when programmatic seeking is triggered on one element", () => {
+      // Create element with two videos
+      mediaSyncElement = document.createElement("media-sync") as MediaSync;
+      const video1 = document.createElement("video");
+      const video2 = document.createElement("video");
+      
+      mediaSyncElement.appendChild(video1);
+      mediaSyncElement.appendChild(video2);
+      document.body.appendChild(mediaSyncElement);
+      
+      // Initialize and setup test
+      mediaSyncElement.initialize();
+      
+      // Access the MediaElementWrapper instances to properly mock them
+      const mediaElements = (mediaSyncElement as any).mediaElements;
+      
+      // Set up a proper mock for seekTo that actually updates the time
+      mediaElements.forEach((wrapper: MediaElementWrapper) => {
+        wrapper.seekTo = vi.fn((time: number) => {
+          wrapper.element.currentTime = time;
+        });
+      });
+      
+      // Set video1 to a new time
+      video1.currentTime = 45;
+      
+      // Dispatch programmatic seeking event on video1
+      video1.dispatchEvent(CustomEvents.programmatic.seeking);
+      
+      // Video2 should be synced to the same time
+      expect(video2.currentTime).toBe(45);
     });
   });
 
@@ -247,6 +334,96 @@ describe("MediaSync", () => {
       // Verify both videos were paused
       expect(pauseFn1).toHaveBeenCalled();
       expect(pauseFn2).toHaveBeenCalled();
+    });
+    
+    it("should synchronize all media elements when seekAll() is called", () => {
+      // Create element with three videos
+      mediaSyncElement = document.createElement("media-sync") as MediaSync;
+      const video1 = document.createElement("video");
+      const video2 = document.createElement("video");
+      const video3 = document.createElement("video");
+      
+      mediaSyncElement.appendChild(video1);
+      mediaSyncElement.appendChild(video2);
+      mediaSyncElement.appendChild(video3);
+      document.body.appendChild(mediaSyncElement);
+      
+      // Initialize and setup test
+      mediaSyncElement.initialize();
+      
+      // Access the MediaElementWrapper instances to properly mock them
+      const mediaElements = (mediaSyncElement as any).mediaElements;
+      
+      // Set up a proper mock for seekTo that actually updates the time
+      mediaElements.forEach((wrapper: MediaElementWrapper) => {
+        wrapper.seekTo = vi.fn((time: number) => {
+          wrapper.element.currentTime = time;
+        });
+      });
+      
+      // Set initial times
+      video1.currentTime = 10;
+      video2.currentTime = 20;
+      video3.currentTime = 30;
+      
+      // Call seekAll to sync all videos to 50 seconds
+      mediaSyncElement.seekAll(50);
+      
+      // All videos should be at the target time
+      expect(video1.currentTime).toBe(50);
+      expect(video2.currentTime).toBe(50);
+      expect(video3.currentTime).toBe(50);
+    });
+  });
+  
+  describe("seeking synchronization edge cases", () => {
+    it("should prevent infinite loops during multiple seeking events", () => {
+      // Setup fake timers
+      vi.useFakeTimers();
+      
+      // Create element with two videos
+      mediaSyncElement = document.createElement("media-sync") as MediaSync;
+      const video1 = document.createElement("video");
+      const video2 = document.createElement("video");
+      
+      // Create spy for seekTo method
+      const seekToSpy = vi.fn((time) => { 
+        // Mock implementation to update the currentTime
+        video2.currentTime = time;
+      });
+      
+      mediaSyncElement.appendChild(video1);
+      mediaSyncElement.appendChild(video2);
+      document.body.appendChild(mediaSyncElement);
+      
+      // Initialize the element
+      mediaSyncElement.initialize();
+      
+      // Override the MediaElementWrapper.seekTo implementation after initialization
+      // to track calls
+      const mediaElements = (mediaSyncElement as any).mediaElements;
+      mediaElements.forEach((wrapper: any) => {
+        if (wrapper.element === video2) {
+          wrapper.seekTo = seekToSpy;
+        }
+      });
+      
+      // Trigger several seeking events in quick succession
+      for (let i = 0; i < 5; i++) {
+        video1.currentTime = i * 10;
+        video1.dispatchEvent(CustomEvents.user.seeking);
+      }
+      
+      // Run all timers to allow debounced functions to execute
+      vi.runAllTimers();
+      
+      // Verify that seekTo was called (actual number depends on implementation)
+      // But we should verify that at least it was called with the last time value
+      expect(seekToSpy).toHaveBeenCalled();
+      expect(seekToSpy).toHaveBeenCalledWith(40); // Last time value (4 * 10)
+      
+      // Restore real timers
+      vi.useRealTimers();
     });
   });
 });
