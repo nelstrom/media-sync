@@ -9,6 +9,12 @@ const SEEK_DEBOUNCE_DELAY = 10;
 // Sample every 100ms (10 samples per second)
 const DRIFT_SAMPLE_INTERVAL = 100;
 
+// Correct drift every 200ms (5 times per second)
+const DRIFT_CORRECTION_INTERVAL = 200;
+
+// Threshold in milliseconds - only correct if drift exceeds this value
+const DRIFT_CORRECTION_THRESHOLD = 30;
+
 // Interface for drift samples
 interface DriftSample {
   timestamp: number;      // Main track's currentTime
@@ -30,6 +36,10 @@ export class MediaSync extends HTMLElement {
   // Drift sampling properties
   public driftSamples: DriftSample[] = [];
   private driftSamplingIntervalId: number | null = null;
+  
+  // Drift correction properties
+  private driftCorrectionIntervalId: number | null = null;
+  public driftCorrectionEnabled: boolean = true;
 
   constructor() {
     super();
@@ -49,8 +59,9 @@ export class MediaSync extends HTMLElement {
    */
   disconnectedCallback(): void {
     Logger.debug("MediaSync: Disconnected from DOM");
-    // Stop drift sampling when disconnected
+    // Stop drift sampling and correction when disconnected
     this.stopDriftSampling();
+    this.stopDriftCorrection();
   }
   
   /**
@@ -114,6 +125,68 @@ export class MediaSync extends HTMLElement {
       timestamp: mainTime,
       drifts: drifts
     });
+  }
+  
+  /**
+   * Start the drift correction mechanism
+   */
+  private startDriftCorrection(): void {
+    // Don't start if already running or if correction is disabled
+    if (this.driftCorrectionIntervalId !== null || !this.driftCorrectionEnabled) {
+      return;
+    }
+    
+    Logger.debug('Starting drift correction (up to 5 times per second)');
+    
+    this.driftCorrectionIntervalId = window.setInterval(() => {
+      this.correctDrift();
+    }, DRIFT_CORRECTION_INTERVAL);
+  }
+  
+  /**
+   * Stop the drift correction mechanism
+   */
+  private stopDriftCorrection(): void {
+    if (this.driftCorrectionIntervalId !== null) {
+      Logger.debug('Stopping drift correction');
+      window.clearInterval(this.driftCorrectionIntervalId);
+      this.driftCorrectionIntervalId = null;
+    }
+  }
+  
+  /**
+   * Correct drift between tracks if it exceeds the threshold
+   */
+  private correctDrift(): void {
+    if (this.mediaElements.length <= 1) {
+      return; // Need at least 2 media elements to correct drift
+    }
+    
+    // Skip if we're already in a seeking operation
+    if (this.isSyncingSeeking) {
+      return;
+    }
+    
+    // Find the main element
+    const mainElement = this.mediaElements.find(media => media.isMain) || this.mediaElements[0];
+    const mainTime = mainElement.element.currentTime;
+    
+    // Skip correction if main element is not playing
+    if (mainElement.element.paused) {
+      return;
+    }
+    
+    // Find tracks that have drifted beyond the threshold
+    const driftedTracks = this.otherTracks(mainElement.element).filter(media => {
+      const drift = Math.abs((media.element.currentTime - mainTime) * 1000);
+      return drift > DRIFT_CORRECTION_THRESHOLD;
+    });
+    
+    // If we have any tracks that need correction, use the seekTracks method
+    if (driftedTracks.length > 0) {
+      Logger.debug(`Drift correction: ${driftedTracks.length} tracks exceeded ${DRIFT_CORRECTION_THRESHOLD}ms threshold`);
+      this.seekTracks(driftedTracks, mainTime);
+    }
   }
 
   /**
@@ -237,8 +310,9 @@ export class MediaSync extends HTMLElement {
     
     Logger.debug(`MediaSync: Seeking ${mediaElements.length} media elements to ${time}s`);
     
-    // Stop drift sampling during seeking to avoid misleading data
+    // Stop drift sampling and correction during seeking to avoid misleading data
     this.stopDriftSampling();
+    this.stopDriftCorrection();
     
     // Set flag to prevent infinite loops from programmatic seeking events
     this.isSyncingSeeking = true;
@@ -252,10 +326,11 @@ export class MediaSync extends HTMLElement {
     setTimeout(() => {
       this.isSyncingSeeking = false;
       
-      // If all elements are playing after seeking, restart drift sampling
+      // If all elements are playing after seeking, restart drift sampling and correction
       const allPlaying = this.mediaElements.every(media => !media.element.paused);
       if (allPlaying) {
         this.startDriftSampling();
+        this.startDriftCorrection();
       }
     }, SEEK_DEBOUNCE_DELAY * 2);
   }
@@ -294,10 +369,11 @@ export class MediaSync extends HTMLElement {
       // Wait for all play operations to complete
       await Promise.all(playPromises);
       
-      // Start drift sampling if all tracks are playing
+      // Start drift sampling and correction if all tracks are playing
       const allPlaying = this.mediaElements.every(media => !media.element.paused);
       if (allPlaying) {
         this.startDriftSampling();
+        this.startDriftCorrection();
       }
 
       // Reset flag after all play operations are complete
@@ -335,8 +411,9 @@ export class MediaSync extends HTMLElement {
     // Pause all media elements - this is synchronous
     mediaElements.forEach((media) => media.pause());
     
-    // Stop drift sampling when pausing
+    // Stop drift sampling and correction when pausing
     this.stopDriftSampling();
+    this.stopDriftCorrection();
 
     // Reset flag after pausing is complete
     // Use setTimeout to ensure this runs after the current execution cycle
