@@ -35,8 +35,15 @@ The `<media-sync>` element works on the assumption that all provided tracks have
 - [X] while playing: manually scrubbing any track causes all tracks to scrub
 - [X] while paused: manually scrubbing any track causes all tracks to scrub
 - [X] setting `currentTime` on any track causes all tracks to sync to that timestamp
-- [ ] periodically check deltas and re-sync to correct any drift
 - [X] give media-sync element a similar interface to media elements (play, pause, currentTime)
+- [X] make impossible states impossible (wrt to syncing)
+- [ ] handle loading and readiness states
+- [ ] add a disabled property/attribute
+- [ ] use a data- attribute to mark the main track
+- [ ] use a data- attribute to enable/disable debug logging
+- [ ] periodically check deltas and re-sync to correct any drift
+- [ ] give media-element-wrapper a similar interface to media elements (play, pause, currentTime)
+- [ ] intentionally delete code in ways that don't cause the tests to fail. Ask GenAI to add tests to catch these blind-spots
 
 ### sync-video-player inspired approach
 
