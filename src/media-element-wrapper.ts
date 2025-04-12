@@ -53,7 +53,7 @@ export class MediaElementWrapperImpl implements MediaElementWrapper {
         },
       });
     } else {
-      console.error("Failed to override currentTime property");
+      Logger.error("Failed to override currentTime property");
     }
 
     this.element.addEventListener("seeking", () => {
@@ -79,7 +79,7 @@ export class MediaElementWrapperImpl implements MediaElementWrapper {
         await HTMLMediaElement.prototype.play.call(this);
         self.isUserInitiated = true;
       } catch (error) {
-        console.error("Error starting video playback:", error);
+        Logger.error("Error starting video playback:", error);
       }
     };
 
@@ -113,7 +113,7 @@ export class MediaElementWrapperImpl implements MediaElementWrapper {
    * Play the media
    */
   public async play(): Promise<void> {
-    console.log("play", this.id);
+    Logger.debug("play", this.id);
     if (this.isPlaying) return;
 
     try {
