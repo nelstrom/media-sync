@@ -6,6 +6,15 @@ import { Logger, debounce } from "./utils";
 // Debounce delay for seeking events (in milliseconds)
 const SEEK_DEBOUNCE_DELAY = 10;
 
+// Sample every 100ms (10 samples per second)
+const DRIFT_SAMPLE_INTERVAL = 100;
+
+// Interface for drift samples
+interface DriftSample {
+  timestamp: number;      // Main track's currentTime
+  drifts: number[];       // Drift for each track in milliseconds (relative to main)
+}
+
 /**
  * MediaSync class that manages and synchronizes multiple media elements
  */
@@ -17,6 +26,10 @@ export class MediaSync extends HTMLElement {
   
   // Store the last seek time
   private lastSeekTime: number | null = null;
+  
+  // Drift sampling properties
+  public driftSamples: DriftSample[] = [];
+  private driftSamplingIntervalId: number | null = null;
 
   constructor() {
     super();
@@ -36,7 +49,71 @@ export class MediaSync extends HTMLElement {
    */
   disconnectedCallback(): void {
     Logger.debug("MediaSync: Disconnected from DOM");
-    // Clean up any resources if needed
+    // Stop drift sampling when disconnected
+    this.stopDriftSampling();
+  }
+  
+  /**
+   * Start sampling drift between media elements
+   */
+  private startDriftSampling(): void {
+    if (this.driftSamplingIntervalId !== null) {
+      // Already sampling
+      return;
+    }
+    
+    Logger.debug('Starting drift sampling');
+    // this.driftSamples = []; // Reset samples
+    
+    this.driftSamplingIntervalId = window.setInterval(() => {
+      this.sampleDrift();
+    }, DRIFT_SAMPLE_INTERVAL);
+  }
+  
+  /**
+   * Stop sampling drift between media elements
+   */
+  private stopDriftSampling(): void {
+    if (this.driftSamplingIntervalId !== null) {
+      Logger.debug(`Stopping drift sampling. Collected ${this.driftSamples.length} samples`);
+      window.clearInterval(this.driftSamplingIntervalId);
+      this.driftSamplingIntervalId = null;
+    }
+  }
+  
+  /**
+   * Take a single drift sample
+   */
+  private sampleDrift(): void {
+    if (this.mediaElements.length <= 1) {
+      return; // Need at least 2 media elements to measure drift
+    }
+    
+    // Find the main element
+    const mainElement = this.mediaElements.find(media => media.isMain) || this.mediaElements[0];
+    const mainTime = mainElement.element.currentTime;
+    
+    // Skip if main element is not playing
+    if (mainElement.element.paused) {
+      return;
+    }
+    
+    // Calculate drift for each track relative to the main track
+    const drifts = this.mediaElements.map(media => {
+      if (media === mainElement) {
+        return 0; // No drift for the main track
+      }
+      
+      // Calculate drift in milliseconds
+      const drift = (media.element.currentTime - mainTime) * 1000;
+      return drift;
+    });
+    
+    // Record the sample
+    this.driftSamples.push({
+      timestamp: mainTime,
+      drifts: drifts
+    });
   }
 
   /**
@@ -160,6 +237,9 @@ export class MediaSync extends HTMLElement {
     
     Logger.debug(`MediaSync: Seeking ${mediaElements.length} media elements to ${time}s`);
     
+    // Stop drift sampling during seeking to avoid misleading data
+    this.stopDriftSampling();
+    
     // Set flag to prevent infinite loops from programmatic seeking events
     this.isSyncingSeeking = true;
     
@@ -171,6 +251,12 @@ export class MediaSync extends HTMLElement {
     // Reset flag after a short delay to prevent race conditions
     setTimeout(() => {
       this.isSyncingSeeking = false;
+      
+      // If all elements are playing after seeking, restart drift sampling
+      const allPlaying = this.mediaElements.every(media => !media.element.paused);
+      if (allPlaying) {
+        this.startDriftSampling();
+      }
     }, SEEK_DEBOUNCE_DELAY * 2);
   }
 
@@ -207,6 +293,12 @@ export class MediaSync extends HTMLElement {
 
       // Wait for all play operations to complete
       await Promise.all(playPromises);
+      
+      // Start drift sampling if all tracks are playing
+      const allPlaying = this.mediaElements.every(media => !media.element.paused);
+      if (allPlaying) {
+        this.startDriftSampling();
+      }
 
       // Reset flag after all play operations are complete
       setTimeout(() => {
@@ -242,6 +334,9 @@ export class MediaSync extends HTMLElement {
 
     // Pause all media elements - this is synchronous
     mediaElements.forEach((media) => media.pause());
+    
+    // Stop drift sampling when pausing
+    this.stopDriftSampling();
 
     // Reset flag after pausing is complete
     // Use setTimeout to ensure this runs after the current execution cycle
