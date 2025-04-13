@@ -308,7 +308,7 @@ export class MediaSync extends HTMLElement {
       return;
     }
     
-    Logger.debug(`MediaSync: Seeking ${mediaElements.length} media elements to ${time}s`);
+    Logger.debug(`Seeking ${mediaElements.length} media elements to ${time}s`);
     
     // Stop drift sampling and correction during seeking to avoid misleading data
     this.stopDriftSampling();
