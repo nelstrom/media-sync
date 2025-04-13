@@ -9,11 +9,16 @@ const SEEK_DEBOUNCE_DELAY = 10;
 // Sample every 100ms (10 samples per second)
 const DRIFT_SAMPLE_INTERVAL = 100;
 
+// Detect Safari browser
+const isSafari = typeof navigator !== 'undefined' && 
+  /^((?!chrome|android).)*safari/i.test(navigator.userAgent);
+
 // Correct drift every 200ms (5 times per second)
 const DRIFT_CORRECTION_INTERVAL = 200;
 
 // Threshold in milliseconds - only correct if drift exceeds this value
-const DRIFT_CORRECTION_THRESHOLD = 30;
+// Use a higher threshold for Safari due to its different media handling
+const DRIFT_CORRECTION_THRESHOLD = isSafari ? 150 : 30;
 
 // Interface for drift samples
 interface DriftSample {
