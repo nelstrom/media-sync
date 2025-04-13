@@ -36,7 +36,7 @@ The `<media-sync>` element works on the assumption that all provided tracks have
 - [X] while paused: manually scrubbing any track causes all tracks to scrub
 - [X] setting `currentTime` on any track causes all tracks to sync to that timestamp
 - [X] give media-sync element a similar interface to media elements (play, pause, currentTime)
-- [X] make impossible states impossible (wrt to syncing)
+- [X] ~~make impossible states impossible (wrt to syncing)~~
 - [ ] handle loading and readiness states
 - [ ] add a disabled property/attribute
 - [ ] use a data- attribute to mark the main track
