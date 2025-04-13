@@ -45,10 +45,15 @@ export class MediaSync extends HTMLElement {
   // Drift correction properties
   private driftCorrectionIntervalId: number | null = null;
   public driftCorrectionEnabled: boolean = true;
+  
+  // Web Audio API integration
+  private audioContext: AudioContext | null = null;
+  private useWebAudio: boolean = true; // Use Web Audio API for all browsers
 
   constructor() {
     super();
     Logger.debug("MediaSync: Initializing");
+    Logger.debug("Using Web Audio API for precise synchronization");
   }
 
   /**
@@ -67,6 +72,66 @@ export class MediaSync extends HTMLElement {
     // Stop drift sampling and correction when disconnected
     this.stopDriftSampling();
     this.stopDriftCorrection();
+    
+    // Clean up Web Audio API resources
+    this.cleanupAudioContext();
+  }
+  
+  /**
+   * Initialize the Web Audio API context
+   */
+  private initAudioContext(): void {
+    if (!this.useWebAudio || this.audioContext) {
+      return;
+    }
+    
+    try {
+      // Check if we're in a browser environment
+      if (typeof window === 'undefined' || !window.AudioContext && !(window as any).webkitAudioContext) {
+        // We're likely in a test environment
+        Logger.debug("Web Audio API not available - likely in test environment");
+        this.useWebAudio = false;
+        return;
+      }
+      
+      // Create a new audio context
+      const AudioContextClass = window.AudioContext || (window as any).webkitAudioContext;
+      this.audioContext = new AudioContextClass();
+      
+      // Connect all media elements to the audio context
+      this.mediaElements.forEach(media => {
+        media.connectToAudioContext(this.audioContext!);
+      });
+      
+      Logger.debug("Web Audio API context initialized");
+    } catch (error) {
+      Logger.error("Failed to initialize Web Audio API:", error);
+      this.useWebAudio = false;
+    }
+  }
+  
+  /**
+   * Clean up the Web Audio API context
+   */
+  private cleanupAudioContext(): void {
+    if (!this.audioContext) {
+      return;
+    }
+    
+    try {
+      // Disconnect all media elements from the audio context
+      this.mediaElements.forEach(media => {
+        media.disconnectFromAudioContext();
+      });
+      
+      // Close the audio context
+      this.audioContext.close();
+      this.audioContext = null;
+      
+      Logger.debug("Web Audio API context cleaned up");
+    } catch (error) {
+      Logger.error("Error cleaning up Web Audio API:", error);
+    }
   }
   
   /**
@@ -219,6 +284,7 @@ export class MediaSync extends HTMLElement {
     elements: HTMLMediaElement[],
     mainElement: HTMLMediaElement
   ): void {
+    // Set up all media elements first
     elements.forEach((element, index) => {
       const isMain = element === mainElement;
 
@@ -295,6 +361,12 @@ export class MediaSync extends HTMLElement {
         Logger.debug(`Set element ${index} as main media element`);
       }
     });
+    
+    // Initialize Web Audio API after all media elements are set up
+    if (this.useWebAudio) {
+      // Use a small delay to ensure all media elements are properly registered
+      setTimeout(() => this.initAudioContext(), 0);
+    }
   }
 
   /**
@@ -367,6 +439,14 @@ export class MediaSync extends HTMLElement {
 
       // Set flag to prevent infinite loops from programmatic play events
       this.isSyncingPlay = true;
+      
+      // When using Web Audio API, ensure the audio context is resumed
+      if (this.useWebAudio && this.audioContext) {
+        if (this.audioContext.state === 'suspended') {
+          await this.audioContext.resume();
+          Logger.debug("Resumed audio context");
+        }
+      }
 
       // Play all media elements
       const playPromises = mediaElements.map((media) => media.play());

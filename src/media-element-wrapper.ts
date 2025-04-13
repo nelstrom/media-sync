@@ -11,8 +11,11 @@ export class MediaElementWrapperImpl implements MediaElementWrapper {
   public state: MediaState = MediaState.LOADING;
   public isPlaying: boolean = false;
   public isMain: boolean = false;
+  public audioSource?: MediaElementAudioSourceNode;
 
   private isUserInitiated: boolean = true;
+  protected audioContext?: AudioContext;
+  private gainNode?: GainNode;
 
   constructor(
     element: HTMLMediaElement,
@@ -169,5 +172,58 @@ export class MediaElementWrapperImpl implements MediaElementWrapper {
   public isEnded(): boolean {
     const diff = Math.abs(this.getCurrentTime() - this.getDuration());
     return diff < 0.1;
+  }
+  
+  /**
+   * Connect this media element to a Web Audio API context
+   * This allows for more precise synchronization
+   */
+  public connectToAudioContext(context: AudioContext): void {
+    if (this.audioSource) {
+      // Already connected
+      return;
+    }
+    
+    try {
+      // Store reference to the audio context
+      this.audioContext = context;
+      
+      // Create a source node from the media element
+      this.audioSource = context.createMediaElementSource(this.element);
+      
+      // Create a gain node for potential volume control
+      this.gainNode = context.createGain();
+      
+      // Connect the source to the gain node, then to the destination (speakers)
+      this.audioSource.connect(this.gainNode);
+      this.gainNode.connect(context.destination);
+      
+      Logger.debug(`Connected ${this.id} to Web Audio API context`);
+    } catch (error) {
+      Logger.error(`Error connecting ${this.id} to Web Audio API:`, error);
+      this.disconnectFromAudioContext();
+    }
+  }
+  
+  /**
+   * Disconnect from Web Audio API context
+   */
+  public disconnectFromAudioContext(): void {
+    try {
+      if (this.gainNode) {
+        this.gainNode.disconnect();
+        this.gainNode = undefined;
+      }
+      
+      if (this.audioSource) {
+        this.audioSource.disconnect();
+        this.audioSource = undefined;
+      }
+      // console.log('ac', this.audioContext)
+      this.audioContext = undefined;
+      Logger.debug(`Disconnected ${this.id} from Web Audio API context`);
+    } catch (error) {
+      Logger.error(`Error disconnecting ${this.id} from Web Audio API:`, error);
+    }
   }
 }

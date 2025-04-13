@@ -30,6 +30,11 @@ export interface MediaElementWrapper {
   isMain: boolean;
   
   /**
+   * Audio source node for Web Audio API integration
+   */
+  audioSource?: MediaElementAudioSourceNode;
+  
+  /**
    * Play the media element
    */
   play(): Promise<void>;
@@ -58,4 +63,14 @@ export interface MediaElementWrapper {
    * Check if the media has ended
    */
   isEnded(): boolean;
+  
+  /**
+   * Connect to Web Audio API context
+   */
+  connectToAudioContext(context: AudioContext): void;
+  
+  /**
+   * Disconnect from Web Audio API context
+   */
+  disconnectFromAudioContext(): void;
 }
