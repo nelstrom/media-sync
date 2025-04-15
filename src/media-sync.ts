@@ -20,10 +20,26 @@ const DRIFT_CORRECTION_INTERVAL = 200;
 // Use a higher threshold for Safari due to its different media handling
 const DRIFT_CORRECTION_THRESHOLD = isSafari ? 150 : 30;
 
-// Interface for drift samples
-interface DriftSample {
-  timestamp: number;      // Main track's currentTime
-  drifts: number[];       // Drift for each track in milliseconds (relative to main)
+// Interface for drift samples and corrections
+interface DriftRecord {
+  type: 'sample' | 'correction';
+  currentTime: number;    // Main track's currentTime
+}
+
+interface DriftSample extends DriftRecord {
+  type: 'sample';
+  drifts: {
+    id: string;
+    delta: number;        // Drift in milliseconds (relative to main)
+  }[];
+}
+
+interface DriftCorrection extends DriftRecord {
+  type: 'correction';
+  corrections: {
+    id: string;
+    correcting: boolean;
+  }[];
 }
 
 /**
@@ -39,7 +55,7 @@ export class MediaSync extends HTMLElement {
   private lastSeekTime: number | null = null;
   
   // Drift sampling properties
-  public driftSamples: DriftSample[] = [];
+  public driftSamples: (DriftSample | DriftCorrection)[] = [];
   private driftSamplingIntervalId: number | null = null;
   
   // Drift correction properties
@@ -181,18 +197,21 @@ export class MediaSync extends HTMLElement {
     
     // Calculate drift for each track relative to the main track
     const drifts = this.mediaElements.map(media => {
-      if (media === mainElement) {
-        return 0; // No drift for the main track
-      }
+      // Calculate drift in milliseconds and round to nearest integer
+      const delta = (media === mainElement) ? 
+        0 : // No drift for the main track
+        Math.round((media.element.currentTime - mainTime) * 1000);
       
-      // Calculate drift in milliseconds
-      const drift = (media.element.currentTime - mainTime) * 1000;
-      return drift;
+      return {
+        id: media.id,
+        delta: delta
+      };
     });
     
     // Record the sample
     this.driftSamples.push({
-      timestamp: mainTime,
+      type: 'sample',
+      currentTime: mainTime,
       drifts: drifts
     });
   }
@@ -248,9 +267,27 @@ export class MediaSync extends HTMLElement {
     
     // Find tracks that have drifted beyond the threshold
     const driftedTracks = this.otherTracks(mainElement.element).filter(media => {
-      const drift = Math.abs((media.element.currentTime - mainTime) * 1000);
+      const drift = Math.abs(Math.round((media.element.currentTime - mainTime) * 1000));
       return drift > DRIFT_CORRECTION_THRESHOLD;
     });
+    
+    // Only record corrections if we're actually correcting something
+    if (driftedTracks.length > 0) {
+      // Record the correction information
+      const corrections = this.mediaElements.map(media => {
+        return {
+          id: media.id,
+          correcting: driftedTracks.includes(media)
+        };
+      });
+      
+      // Add to drift samples
+      this.driftSamples.push({
+        type: 'correction',
+        currentTime: mainTime,
+        corrections: corrections
+      });
+    }
     
     // If we have any tracks that need correction, use the seekTracks method
     if (driftedTracks.length > 0) {
