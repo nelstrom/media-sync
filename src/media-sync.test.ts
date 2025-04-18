@@ -1,6 +1,10 @@
 import { afterEach, beforeAll, describe, expect, it, vi } from "vitest";
 import { CustomEvents } from "./constants";
 import { MediaSync } from "./media-sync";
+import { __getWrapperMap } from "./media-element-wrapper";
+
+// Need to define these mocks before any imports
+const wrapperMap = new Map();
 
 // Mock the debounce utility to execute immediately in tests
 vi.mock("./utils", async (importOriginal) => {
@@ -14,42 +18,71 @@ vi.mock("./utils", async (importOriginal) => {
 // Mock the MediaElementWrapper implementation
 vi.mock("./media-element-wrapper", () => {
   return {
-    MediaElementWrapperImpl: vi
-      .fn()
-      .mockImplementation((element, options = {}) => {
-        // Create the mock object with getters and setters
-        const mockWrapper = {
-          id: Math.random().toString(36).substring(2, 15),
-          element,
-          isMain: options.isMain || false,
-          state: "LOADING",
-          isPlaying: false,
-          play: vi.fn().mockImplementation(async () => {
-            return element.play();
-          }),
-          pause: vi.fn().mockImplementation(() => {
-            element.pause();
-          }),
-          isEnded: vi.fn().mockReturnValue(false),
-          connectToAudioContext: vi.fn(),
-          disconnectFromAudioContext: vi.fn(),
-        };
+    // Export a function to access the wrapper map to avoid hoisting issues
+    __getWrapperMap: () => wrapperMap,
+    
+    MediaElementWrapperImpl: vi.fn().mockImplementation((element, options = {}) => {
+      const id = Math.random().toString(36).substring(2, 15);
+      
+      // Create a play function that will call the element's play method
+      const playFn = vi.fn().mockImplementation(async () => {
+        try {
+          return await element.play();
+        } catch (error) {
+          console.error("Error playing media in test:", error);
+        }
+      });
+      
+      // Create a pause function that will call the element's pause method
+      const pauseFn = vi.fn().mockImplementation(() => {
+        element.pause();
+      });
+      
+      // Create the wrapper object with necessary methods
+      const mockWrapper = {
+        id,
+        // Private property, but exposed for testing
+        _element: element,
+        isMain: options.isMain || false,
         
-        // Define currentTime getter/setter (replaces getCurrentTime and seekTo)
-        Object.defineProperty(mockWrapper, 'currentTime', {
-          get: vi.fn().mockImplementation(() => element.currentTime),
-          set: vi.fn().mockImplementation((time) => {
-            element.currentTime = time;
-          }),
-        });
-        
-        // Define duration getter (replaces getDuration)
-        Object.defineProperty(mockWrapper, 'duration', {
-          get: vi.fn().mockReturnValue(100),
-        });
-        
-        return mockWrapper;
-      }),
+        // Methods
+        play: playFn,
+        pause: pauseFn,
+        isEnded: vi.fn().mockReturnValue(false),
+        isPlaying: vi.fn().mockImplementation(() => !element.paused),
+        isPaused: vi.fn().mockImplementation(() => element.paused),
+        connectToAudioContext: vi.fn(),
+        disconnectFromAudioContext: vi.fn(),
+                
+        // For compatibility with otherTracks method that uses internal accessor
+        get element() {
+          return element;
+        }
+      };
+      
+      // Define getters/setters
+      Object.defineProperty(mockWrapper, 'currentTime', {
+        configurable: true,
+        get: function() { 
+          return element.currentTime; 
+        },
+        set: function(time) { 
+          element.currentTime = time; 
+        }
+      });
+      
+      Object.defineProperty(mockWrapper, 'duration', {
+        configurable: true,
+        get: function() { 
+          return element.duration || 100; 
+        }
+      });
+      
+      // Store the wrapper in the map for later reference
+      wrapperMap.set(element, mockWrapper);
+      
+      return mockWrapper;
+    })
   };
 });
 
@@ -115,24 +148,34 @@ describe("MediaSync", () => {
       const video1 = document.createElement("video");
       const video2 = document.createElement("video");
 
-      // Create spy functions for play
-      const playFn1 = vi.fn().mockResolvedValue(undefined);
-      const playFn2 = vi.fn().mockResolvedValue(undefined);
-      video1.play = playFn1;
-      video2.play = playFn2;
+      // Create spy functions for play (we still need these for HTMLMediaElement)
+      const elementPlayFn1 = vi.fn().mockResolvedValue(undefined);
+      const elementPlayFn2 = vi.fn().mockResolvedValue(undefined);
+      video1.play = elementPlayFn1;
+      video2.play = elementPlayFn2;
 
       mediaSyncElement.appendChild(video1);
       mediaSyncElement.appendChild(video2);
       document.body.appendChild(mediaSyncElement);
 
-      // Initialize and reset mocks before testing
+      // Initialize the element
       mediaSyncElement.initialize();
+      
+      // Get the wrappers for our elements using the exported getter function
+      const wrapper1 = __getWrapperMap().get(video1);
+      const wrapper2 = __getWrapperMap().get(video2);
+      
+      // Create spies for our wrapper's play methods
+      const playFn1 = vi.spyOn(wrapper1, "play");
+      const playFn2 = vi.spyOn(wrapper2, "play");
+      
+      // Reset mocks before testing
       vi.clearAllMocks();
 
       // Dispatch user play event on video1
       video1.dispatchEvent(CustomEvents.user.play);
 
-      // Verify video2 play was called, but not video1 again
+      // Verify wrapper2's play was called, but not wrapper1's again
       expect(playFn1).not.toHaveBeenCalled();
       expect(playFn2).toHaveBeenCalled();
     });
@@ -143,24 +186,34 @@ describe("MediaSync", () => {
       const video1 = document.createElement("video");
       const video2 = document.createElement("video");
 
-      // Create spy functions for pause
-      const pauseFn1 = vi.fn();
-      const pauseFn2 = vi.fn();
-      video1.pause = pauseFn1;
-      video2.pause = pauseFn2;
+      // Create spy functions for HTMLMediaElement pause
+      const elementPauseFn1 = vi.fn();
+      const elementPauseFn2 = vi.fn();
+      video1.pause = elementPauseFn1;
+      video2.pause = elementPauseFn2;
 
       mediaSyncElement.appendChild(video1);
       mediaSyncElement.appendChild(video2);
       document.body.appendChild(mediaSyncElement);
 
-      // Initialize and reset mocks before testing
+      // Initialize the element
       mediaSyncElement.initialize();
+      
+      // Get the wrappers for our elements using the exported getter function
+      const wrapper1 = __getWrapperMap().get(video1);
+      const wrapper2 = __getWrapperMap().get(video2);
+      
+      // Create spies for our wrapper's pause methods
+      const pauseFn1 = vi.spyOn(wrapper1, "pause");
+      const pauseFn2 = vi.spyOn(wrapper2, "pause");
+      
+      // Reset mocks before testing
       vi.clearAllMocks();
 
       // Dispatch user pause event on video1
       video1.dispatchEvent(CustomEvents.user.pause);
 
-      // Verify video2 pause was called, but not video1 again
+      // Verify wrapper2's pause was called, but not wrapper1's again
       expect(pauseFn1).not.toHaveBeenCalled();
       expect(pauseFn2).toHaveBeenCalled();
     });
@@ -181,7 +234,11 @@ describe("MediaSync", () => {
       // Initialize and setup test
       mediaSyncElement.initialize();
       
-      // The mock wrappers should already have the currentTime property correctly defined
+      // Access wrapper map using the getter function
+      const wrapper2 = __getWrapperMap().get(video2);
+      
+      // Create a spy on the wrapper's currentTime setter
+      const setCurrentTimeSpy = vi.spyOn(wrapper2, "currentTime", "set");
       
       // Set video1 to a new time
       video1.currentTime = 30;
@@ -191,6 +248,9 @@ describe("MediaSync", () => {
       
       // Advance all timers to trigger the debounce callback
       vi.runAllTimers();
+      
+      // Verify that video2's currentTime setter was called with the correct value
+      expect(setCurrentTimeSpy).toHaveBeenCalledWith(30);
       
       // Since we've advanced the timers, video2 should be synced now
       expect(video2.currentTime).toBe(30);
@@ -207,24 +267,34 @@ describe("MediaSync", () => {
       const video1 = document.createElement("video");
       const video2 = document.createElement("video");
 
-      // Create spy functions for play
-      const playFn1 = vi.fn().mockResolvedValue(undefined);
-      const playFn2 = vi.fn().mockResolvedValue(undefined);
-      video1.play = playFn1;
-      video2.play = playFn2;
+      // Create spy functions for element play
+      const elementPlayFn1 = vi.fn().mockResolvedValue(undefined);
+      const elementPlayFn2 = vi.fn().mockResolvedValue(undefined);
+      video1.play = elementPlayFn1;
+      video2.play = elementPlayFn2;
 
       mediaSyncElement.appendChild(video1);
       mediaSyncElement.appendChild(video2);
       document.body.appendChild(mediaSyncElement);
 
-      // Initialize and reset mocks before testing
+      // Initialize and setup wrapper spies
       mediaSyncElement.initialize();
+      
+      // Access wrapper map using the getter function
+      const wrapper1 = __getWrapperMap().get(video1);
+      const wrapper2 = __getWrapperMap().get(video2);
+      
+      // Create spies for our wrapper's play methods
+      const playFn1 = vi.spyOn(wrapper1, "play");
+      const playFn2 = vi.spyOn(wrapper2, "play");
+      
+      // Reset mocks before testing
       vi.clearAllMocks();
 
       // Dispatch programmatic play event on video1
       video1.dispatchEvent(CustomEvents.programmatic.play);
 
-      // Verify video2 play was called, but not video1 again
+      // Verify wrapper2's play was called, but not wrapper1's again
       expect(playFn1).not.toHaveBeenCalled();
       expect(playFn2).toHaveBeenCalled();
     });
@@ -235,24 +305,34 @@ describe("MediaSync", () => {
       const video1 = document.createElement("video");
       const video2 = document.createElement("video");
 
-      // Create spy functions for pause
-      const pauseFn1 = vi.fn();
-      const pauseFn2 = vi.fn();
-      video1.pause = pauseFn1;
-      video2.pause = pauseFn2;
+      // Create spy functions for element pause
+      const elementPauseFn1 = vi.fn();
+      const elementPauseFn2 = vi.fn();
+      video1.pause = elementPauseFn1;
+      video2.pause = elementPauseFn2;
 
       mediaSyncElement.appendChild(video1);
       mediaSyncElement.appendChild(video2);
       document.body.appendChild(mediaSyncElement);
 
-      // Initialize and reset mocks before testing
+      // Initialize and setup wrapper spies
       mediaSyncElement.initialize();
+      
+      // Access wrapper map using the getter function
+      const wrapper1 = __getWrapperMap().get(video1);
+      const wrapper2 = __getWrapperMap().get(video2);
+      
+      // Create spies for our wrapper's pause methods
+      const pauseFn1 = vi.spyOn(wrapper1, "pause");
+      const pauseFn2 = vi.spyOn(wrapper2, "pause");
+      
+      // Reset mocks before testing
       vi.clearAllMocks();
 
       // Dispatch programmatic pause event on video1
       video1.dispatchEvent(CustomEvents.programmatic.pause);
 
-      // Verify video2 pause was called, but not video1 again
+      // Verify wrapper2's pause was called, but not wrapper1's again
       expect(pauseFn1).not.toHaveBeenCalled();
       expect(pauseFn2).toHaveBeenCalled();
     });
@@ -270,13 +350,20 @@ describe("MediaSync", () => {
       // Initialize and setup test
       mediaSyncElement.initialize();
       
-      // The mock wrappers should already have the currentTime property correctly defined
+      // Access wrapper map using the getter function
+      const wrapper2 = __getWrapperMap().get(video2);
+      
+      // Create a spy on the wrapper's currentTime setter
+      const setCurrentTimeSpy = vi.spyOn(wrapper2, "currentTime", "set");
       
       // Set video1 to a new time
       video1.currentTime = 45;
       
       // Dispatch programmatic seeking event on video1
       video1.dispatchEvent(CustomEvents.programmatic.seeking);
+      
+      // Verify wrapper2's currentTime setter was called with the correct value
+      expect(setCurrentTimeSpy).toHaveBeenCalledWith(45);
       
       // Video2 should be synced to the same time
       expect(video2.currentTime).toBe(45);
@@ -290,21 +377,34 @@ describe("MediaSync", () => {
       const video1 = document.createElement("video");
       const video2 = document.createElement("video");
 
-      // Create spy functions for play
-      const playFn1 = vi.fn().mockResolvedValue(undefined);
-      const playFn2 = vi.fn().mockResolvedValue(undefined);
-      video1.play = playFn1;
-      video2.play = playFn2;
+      // Create spy functions for element play
+      const elementPlayFn1 = vi.fn().mockResolvedValue(undefined);
+      const elementPlayFn2 = vi.fn().mockResolvedValue(undefined);
+      video1.play = elementPlayFn1;
+      video2.play = elementPlayFn2;
 
       mediaSyncElement.appendChild(video1);
       mediaSyncElement.appendChild(video2);
       document.body.appendChild(mediaSyncElement);
 
-      // Initialize and call play
+      // Initialize
       mediaSyncElement.initialize();
+      
+      // Access wrapper map using the getter function
+      const wrapper1 = __getWrapperMap().get(video1);
+      const wrapper2 = __getWrapperMap().get(video2);
+      
+      // Create spies for our wrapper's play methods
+      const playFn1 = vi.spyOn(wrapper1, "play");
+      const playFn2 = vi.spyOn(wrapper2, "play");
+      
+      // Clear mocks before testing
+      vi.clearAllMocks();
+      
+      // Call play
       await mediaSyncElement.play();
 
-      // Verify both videos were played
+      // Verify both wrappers were played
       expect(playFn1).toHaveBeenCalled();
       expect(playFn2).toHaveBeenCalled();
     });
@@ -315,21 +415,34 @@ describe("MediaSync", () => {
       const video1 = document.createElement("video");
       const video2 = document.createElement("video");
 
-      // Create spy functions for pause
-      const pauseFn1 = vi.fn();
-      const pauseFn2 = vi.fn();
-      video1.pause = pauseFn1;
-      video2.pause = pauseFn2;
+      // Create spy functions for element pause
+      const elementPauseFn1 = vi.fn();
+      const elementPauseFn2 = vi.fn();
+      video1.pause = elementPauseFn1;
+      video2.pause = elementPauseFn2;
 
       mediaSyncElement.appendChild(video1);
       mediaSyncElement.appendChild(video2);
       document.body.appendChild(mediaSyncElement);
 
-      // Initialize and call pause
+      // Initialize
       mediaSyncElement.initialize();
+      
+      // Access wrapper map using the getter function
+      const wrapper1 = __getWrapperMap().get(video1);
+      const wrapper2 = __getWrapperMap().get(video2);
+      
+      // Create spies for our wrapper's pause methods
+      const pauseFn1 = vi.spyOn(wrapper1, "pause");
+      const pauseFn2 = vi.spyOn(wrapper2, "pause");
+      
+      // Clear mocks before testing
+      vi.clearAllMocks();
+      
+      // Call pause
       mediaSyncElement.pause();
 
-      // Verify both videos were paused
+      // Verify both wrappers were paused
       expect(pauseFn1).toHaveBeenCalled();
       expect(pauseFn2).toHaveBeenCalled();
     });
@@ -354,8 +467,16 @@ describe("MediaSync", () => {
       video2.currentTime = 30;
       video3.currentTime = 35;
       
-      // The currentTime getter should return the time of the main element (first one)
+      // Access wrapper map using the getter function
+      const wrapper1 = __getWrapperMap().get(video1);
+      
+      // Skip spying on the getter since it's difficult to intercept
+      // but verify the result is coming from the main element
       expect(mediaSyncElement.currentTime).toBe(25);
+      
+      // Set a different time on the main element and verify it's reflected
+      video1.currentTime = 40;
+      expect(mediaSyncElement.currentTime).toBe(40);
     });
     
     it("should synchronize all media elements when currentTime is set", () => {
@@ -373,15 +494,31 @@ describe("MediaSync", () => {
       // Initialize and setup test
       mediaSyncElement.initialize();
       
-      // The mock wrappers should already have the currentTime property correctly defined
+      // Access wrapper map using the getter function
+      const wrapper1 = __getWrapperMap().get(video1);
+      const wrapper2 = __getWrapperMap().get(video2);
+      const wrapper3 = __getWrapperMap().get(video3);
+      
+      // Create spies on the currentTime setters
+      const setCurrentTimeSpy1 = vi.spyOn(wrapper1, "currentTime", "set");
+      const setCurrentTimeSpy2 = vi.spyOn(wrapper2, "currentTime", "set");
+      const setCurrentTimeSpy3 = vi.spyOn(wrapper3, "currentTime", "set");
       
       // Set initial times
       video1.currentTime = 10;
       video2.currentTime = 20;
       video3.currentTime = 30;
       
+      // Clear mocks before testing
+      vi.clearAllMocks();
+      
       // Set currentTime to sync all videos to 50 seconds
       mediaSyncElement.currentTime = 50;
+      
+      // Verify setters were called with the correct value
+      expect(setCurrentTimeSpy1).toHaveBeenCalledWith(50);
+      expect(setCurrentTimeSpy2).toHaveBeenCalledWith(50);
+      expect(setCurrentTimeSpy3).toHaveBeenCalledWith(50);
       
       // All videos should be at the target time
       expect(video1.currentTime).toBe(50);
@@ -407,6 +544,15 @@ describe("MediaSync", () => {
       // Initialize the element
       mediaSyncElement.initialize();
       
+      // Access wrapper map using the getter function
+      const wrapper2 = __getWrapperMap().get(video2);
+      
+      // Create a spy on the wrapper's currentTime setter
+      const setCurrentTimeSpy = vi.spyOn(wrapper2, "currentTime", "set");
+      
+      // Reset mocks before the main test
+      vi.clearAllMocks();
+      
       // Trigger several seeking events in quick succession
       for (let i = 0; i < 5; i++) {
         video1.currentTime = i * 10;
@@ -416,8 +562,11 @@ describe("MediaSync", () => {
       // Run all timers to allow debounced functions to execute
       vi.runAllTimers();
       
+      // Verify that wrapper2's currentTime setter was called with the correct value
+      expect(setCurrentTimeSpy).toHaveBeenCalledWith(40); // Last time value (4 * 10)
+      
       // Verify that video2 time was synced to the last time value of video1
-      expect(video2.currentTime).toBe(40); // Last time value (4 * 10)
+      expect(video2.currentTime).toBe(40);
       
       // Restore real timers
       vi.useRealTimers();
@@ -443,15 +592,27 @@ describe("MediaSync", () => {
       // Initialize the element
       mediaSyncElement.initialize();
       
+      // Access wrapper map using the getter function
+      const wrapper2 = __getWrapperMap().get(video2);
+      
+      // Create a spy on the wrapper's currentTime setter
+      const setCurrentTimeSpy = vi.spyOn(wrapper2, "currentTime", "set");
+      
       // Set initial times
       video1.currentTime = 10;
       video2.currentTime = 20;
+      
+      // Clear mocks before testing
+      vi.clearAllMocks();
       
       // Dispatch seeking event on the first video
       video1.dispatchEvent(CustomEvents.user.seeking);
       
       // Run all timers to allow debounced functions to execute
       vi.runAllTimers();
+      
+      // Verify that wrapper2's currentTime setter was NOT called
+      expect(setCurrentTimeSpy).not.toHaveBeenCalled();
       
       // Verify that video2 time was NOT synced to video1 (still at original time)
       expect(video2.currentTime).toBe(20);
@@ -466,11 +627,17 @@ describe("MediaSync", () => {
       // Run all timers to allow debounced functions to execute
       vi.runAllTimers();
       
+      // Verify that wrapper2's currentTime setter WAS called with the correct value
+      expect(setCurrentTimeSpy).toHaveBeenCalledWith(30);
+      
       // Verify that video2 IS now synced to video1 after enabling
       expect(video2.currentTime).toBe(30);
       
       // Test with property setter too
       mediaSyncElement.disabled = true;
+      
+      // Clear mocks again
+      vi.clearAllMocks();
       
       // Trigger seeking again
       video1.currentTime = 40;
@@ -478,6 +645,9 @@ describe("MediaSync", () => {
       
       // Run all timers to allow debounced functions to execute
       vi.runAllTimers();
+      
+      // Verify that wrapper2's currentTime setter was NOT called again
+      expect(setCurrentTimeSpy).not.toHaveBeenCalled();
       
       // Verify that video2 is still at the previous time (not synced)
       expect(video2.currentTime).toBe(30);
@@ -494,22 +664,36 @@ describe("MediaSync", () => {
       const video1 = document.createElement("video");
       const video2 = document.createElement("video");
       
-      // Create spy functions for play and pause
-      const playFn1 = vi.fn().mockResolvedValue(undefined);
-      const playFn2 = vi.fn().mockResolvedValue(undefined);
-      const pauseFn1 = vi.fn();
-      const pauseFn2 = vi.fn();
-      video1.play = playFn1;
-      video2.play = playFn2;
-      video1.pause = pauseFn1;
-      video2.pause = pauseFn2;
+      // Create spy functions for element play/pause
+      const elementPlayFn1 = vi.fn().mockResolvedValue(undefined);
+      const elementPlayFn2 = vi.fn().mockResolvedValue(undefined);
+      const elementPauseFn1 = vi.fn();
+      const elementPauseFn2 = vi.fn();
+      video1.play = elementPlayFn1;
+      video2.play = elementPlayFn2;
+      video1.pause = elementPauseFn1;
+      video2.pause = elementPauseFn2;
       
       mediaSyncElement.appendChild(video1);
       mediaSyncElement.appendChild(video2);
       document.body.appendChild(mediaSyncElement);
       
-      // Initialize and reset mocks before testing
+      // Initialize the element
       mediaSyncElement.initialize();
+      
+      // Access wrapper map using the getter function
+      const wrapper1 = __getWrapperMap().get(video1);
+      const wrapper2 = __getWrapperMap().get(video2);
+      
+      // Create spies for our wrapper's methods
+      const playFn1 = vi.spyOn(wrapper1, "play");
+      const playFn2 = vi.spyOn(wrapper2, "play");
+      const pauseFn1 = vi.spyOn(wrapper1, "pause");
+      const pauseFn2 = vi.spyOn(wrapper2, "pause");
+      const setCurrentTimeSpy1 = vi.spyOn(wrapper1, "currentTime", "set");
+      const setCurrentTimeSpy2 = vi.spyOn(wrapper2, "currentTime", "set");
+      
+      // Reset mocks before testing
       vi.clearAllMocks();
       
       // Set initial times
@@ -519,19 +703,23 @@ describe("MediaSync", () => {
       // Test play() method - should be a no-op
       mediaSyncElement.play();
       
-      // Neither video's play method should be called
+      // Neither wrapper's play method should be called
       expect(playFn1).not.toHaveBeenCalled();
       expect(playFn2).not.toHaveBeenCalled();
       
       // Test pause() method - should be a no-op
       mediaSyncElement.pause();
       
-      // Neither video's pause method should be called
+      // Neither wrapper's pause method should be called
       expect(pauseFn1).not.toHaveBeenCalled();
       expect(pauseFn2).not.toHaveBeenCalled();
       
       // Test currentTime setter - should be a no-op
       mediaSyncElement.currentTime = 50;
+      
+      // Neither wrapper's currentTime setter should be called
+      expect(setCurrentTimeSpy1).not.toHaveBeenCalled();
+      expect(setCurrentTimeSpy2).not.toHaveBeenCalled();
       
       // Times should remain unchanged
       expect(video1.currentTime).toBe(10);
@@ -543,7 +731,7 @@ describe("MediaSync", () => {
       // Test play() method again - should now work
       mediaSyncElement.play();
       
-      // Both videos' play methods should be called
+      // Both wrappers' play methods should be called
       expect(playFn1).toHaveBeenCalled();
       expect(playFn2).toHaveBeenCalled();
     });
