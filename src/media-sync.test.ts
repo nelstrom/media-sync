@@ -1,7 +1,6 @@
 import { afterEach, beforeAll, describe, expect, it, vi } from "vitest";
 import { CustomEvents } from "./constants";
 import { MediaSync } from "./media-sync";
-import { __getWrapperMap } from "./media-element-wrapper";
 
 // Need to define these mocks before any imports
 const wrapperMap = new Map();
@@ -161,9 +160,9 @@ describe("MediaSync", () => {
       // Initialize the element
       mediaSyncElement.initialize();
       
-      // Get the wrappers for our elements using the exported getter function
-      const wrapper1 = __getWrapperMap().get(video1);
-      const wrapper2 = __getWrapperMap().get(video2);
+      // Get the wrappers for our elements
+      const wrapper1 = wrapperMap.get(video1);
+      const wrapper2 = wrapperMap.get(video2);
       
       // Create spies for our wrapper's play methods
       const playFn1 = vi.spyOn(wrapper1, "play");
@@ -199,9 +198,9 @@ describe("MediaSync", () => {
       // Initialize the element
       mediaSyncElement.initialize();
       
-      // Get the wrappers for our elements using the exported getter function
-      const wrapper1 = __getWrapperMap().get(video1);
-      const wrapper2 = __getWrapperMap().get(video2);
+      // Get the wrappers for our elements
+      const wrapper1 = wrapperMap.get(video1);
+      const wrapper2 = wrapperMap.get(video2);
       
       // Create spies for our wrapper's pause methods
       const pauseFn1 = vi.spyOn(wrapper1, "pause");
@@ -234,8 +233,8 @@ describe("MediaSync", () => {
       // Initialize and setup test
       mediaSyncElement.initialize();
       
-      // Access wrapper map using the getter function
-      const wrapper2 = __getWrapperMap().get(video2);
+      // Access wrapper map
+      const wrapper2 = wrapperMap.get(video2);
       
       // Create a spy on the wrapper's currentTime setter
       const setCurrentTimeSpy = vi.spyOn(wrapper2, "currentTime", "set");
@@ -280,9 +279,9 @@ describe("MediaSync", () => {
       // Initialize and setup wrapper spies
       mediaSyncElement.initialize();
       
-      // Access wrapper map using the getter function
-      const wrapper1 = __getWrapperMap().get(video1);
-      const wrapper2 = __getWrapperMap().get(video2);
+      // Access wrapper map
+      const wrapper1 = wrapperMap.get(video1);
+      const wrapper2 = wrapperMap.get(video2);
       
       // Create spies for our wrapper's play methods
       const playFn1 = vi.spyOn(wrapper1, "play");
@@ -318,9 +317,9 @@ describe("MediaSync", () => {
       // Initialize and setup wrapper spies
       mediaSyncElement.initialize();
       
-      // Access wrapper map using the getter function
-      const wrapper1 = __getWrapperMap().get(video1);
-      const wrapper2 = __getWrapperMap().get(video2);
+      // Access wrapper map
+      const wrapper1 = wrapperMap.get(video1);
+      const wrapper2 = wrapperMap.get(video2);
       
       // Create spies for our wrapper's pause methods
       const pauseFn1 = vi.spyOn(wrapper1, "pause");
@@ -350,8 +349,8 @@ describe("MediaSync", () => {
       // Initialize and setup test
       mediaSyncElement.initialize();
       
-      // Access wrapper map using the getter function
-      const wrapper2 = __getWrapperMap().get(video2);
+      // Access wrapper map
+      const wrapper2 = wrapperMap.get(video2);
       
       // Create a spy on the wrapper's currentTime setter
       const setCurrentTimeSpy = vi.spyOn(wrapper2, "currentTime", "set");
@@ -390,9 +389,9 @@ describe("MediaSync", () => {
       // Initialize
       mediaSyncElement.initialize();
       
-      // Access wrapper map using the getter function
-      const wrapper1 = __getWrapperMap().get(video1);
-      const wrapper2 = __getWrapperMap().get(video2);
+      // Access wrapper map
+      const wrapper1 = wrapperMap.get(video1);
+      const wrapper2 = wrapperMap.get(video2);
       
       // Create spies for our wrapper's play methods
       const playFn1 = vi.spyOn(wrapper1, "play");
@@ -428,9 +427,9 @@ describe("MediaSync", () => {
       // Initialize
       mediaSyncElement.initialize();
       
-      // Access wrapper map using the getter function
-      const wrapper1 = __getWrapperMap().get(video1);
-      const wrapper2 = __getWrapperMap().get(video2);
+      // Access wrapper map
+      const wrapper1 = wrapperMap.get(video1);
+      const wrapper2 = wrapperMap.get(video2);
       
       // Create spies for our wrapper's pause methods
       const pauseFn1 = vi.spyOn(wrapper1, "pause");
@@ -467,8 +466,7 @@ describe("MediaSync", () => {
       video2.currentTime = 30;
       video3.currentTime = 35;
       
-      // Access wrapper map using the getter function
-      const wrapper1 = __getWrapperMap().get(video1);
+      // Main element (video1) is used for currentTime
       
       // Skip spying on the getter since it's difficult to intercept
       // but verify the result is coming from the main element
@@ -494,10 +492,10 @@ describe("MediaSync", () => {
       // Initialize and setup test
       mediaSyncElement.initialize();
       
-      // Access wrapper map using the getter function
-      const wrapper1 = __getWrapperMap().get(video1);
-      const wrapper2 = __getWrapperMap().get(video2);
-      const wrapper3 = __getWrapperMap().get(video3);
+      // Access wrapper map
+      const wrapper1 = wrapperMap.get(video1);
+      const wrapper2 = wrapperMap.get(video2);
+      const wrapper3 = wrapperMap.get(video3);
       
       // Create spies on the currentTime setters
       const setCurrentTimeSpy1 = vi.spyOn(wrapper1, "currentTime", "set");
@@ -544,8 +542,8 @@ describe("MediaSync", () => {
       // Initialize the element
       mediaSyncElement.initialize();
       
-      // Access wrapper map using the getter function
-      const wrapper2 = __getWrapperMap().get(video2);
+      // Access wrapper map
+      const wrapper2 = wrapperMap.get(video2);
       
       // Create a spy on the wrapper's currentTime setter
       const setCurrentTimeSpy = vi.spyOn(wrapper2, "currentTime", "set");
@@ -592,8 +590,8 @@ describe("MediaSync", () => {
       // Initialize the element
       mediaSyncElement.initialize();
       
-      // Access wrapper map using the getter function
-      const wrapper2 = __getWrapperMap().get(video2);
+      // Access wrapper map
+      const wrapper2 = wrapperMap.get(video2);
       
       // Create a spy on the wrapper's currentTime setter
       const setCurrentTimeSpy = vi.spyOn(wrapper2, "currentTime", "set");
@@ -681,9 +679,9 @@ describe("MediaSync", () => {
       // Initialize the element
       mediaSyncElement.initialize();
       
-      // Access wrapper map using the getter function
-      const wrapper1 = __getWrapperMap().get(video1);
-      const wrapper2 = __getWrapperMap().get(video2);
+      // Access wrapper map
+      const wrapper1 = wrapperMap.get(video1);
+      const wrapper2 = wrapperMap.get(video2);
       
       // Create spies for our wrapper's methods
       const playFn1 = vi.spyOn(wrapper1, "play");
