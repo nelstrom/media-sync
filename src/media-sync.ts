@@ -433,7 +433,7 @@ export class MediaSync extends HTMLElement {
     
     // Seek all specified media elements
     mediaElements.forEach(media => {
-      media.seekTo(time);
+      media.currentTime = time;
     });
     
     // Reset flag after a short delay to prevent race conditions

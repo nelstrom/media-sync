@@ -45,19 +45,14 @@ export interface MediaElementWrapper {
   pause(): void;
   
   /**
-   * Seek to a specific time
+   * The current playback time
    */
-  seekTo(time: number): void;
+  currentTime: number;
   
   /**
-   * Get the current playback time
+   * The total duration
    */
-  getCurrentTime(): number;
-  
-  /**
-   * Get the total duration
-   */
-  getDuration(): number;
+  duration: number;
   
   /**
    * Check if the media has ended

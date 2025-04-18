@@ -136,15 +136,13 @@ export class MediaElementWrapperImpl implements MediaElementWrapper {
   /**
    * Seek to a specific time
    */
-  public seekTo(time: number): void {
+  public set currentTime(time: number) {
     if (!this.element) return;
 
-    const duration = this.getDuration();
-
     // Ensure time is within valid range
-    if (time >= duration) {
+    if (time >= this.duration) {
       // Set to just before the end to prevent triggering the ended event
-      this.element.currentTime = Math.max(0, duration - 0.05);
+      this.element.currentTime = Math.max(0, this.duration - 0.05);
       return;
     }
 
@@ -155,14 +153,14 @@ export class MediaElementWrapperImpl implements MediaElementWrapper {
   /**
    * Get the current playback time
    */
-  public getCurrentTime(): number {
+  public get currentTime(): number {
     return this.element?.currentTime || 0;
   }
 
   /**
    * Get the total duration
    */
-  public getDuration(): number {
+  public get duration(): number {
     return this.element?.duration || 0;
   }
 
@@ -170,7 +168,7 @@ export class MediaElementWrapperImpl implements MediaElementWrapper {
    * Check if the media has ended
    */
   public isEnded(): boolean {
-    const diff = Math.abs(this.getCurrentTime() - this.getDuration());
+    const diff = Math.abs(this.currentTime - this.duration);
     return diff < 0.1;
   }
   
