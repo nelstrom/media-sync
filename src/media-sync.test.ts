@@ -1,7 +1,6 @@
 import { afterEach, beforeAll, describe, expect, it, vi } from "vitest";
 import { CustomEvents } from "./constants";
 import { MediaSync } from "./media-sync";
-import { MediaElementWrapper } from "./types";
 
 // Mock the debounce utility to execute immediately in tests
 vi.mock("./utils", async (importOriginal) => {
@@ -17,25 +16,40 @@ vi.mock("./media-element-wrapper", () => {
   return {
     MediaElementWrapperImpl: vi
       .fn()
-      .mockImplementation((element, options = {}) => ({
-        id: Math.random().toString(36).substring(2, 15),
-        element,
-        isMain: options.isMain || false,
-        state: "LOADING",
-        isPlaying: false,
-        play: vi.fn().mockImplementation(async () => {
-          return element.play();
-        }),
-        pause: vi.fn().mockImplementation(() => {
-          element.pause();
-        }),
-        getCurrentTime: vi.fn().mockImplementation(() => element.currentTime),
-        getDuration: vi.fn().mockReturnValue(100),
-        isEnded: vi.fn().mockReturnValue(false),
-        seekTo: vi.fn().mockImplementation((time) => {
-          element.currentTime = time;
-        }),
-      })),
+      .mockImplementation((element, options = {}) => {
+        // Create the mock object with getters and setters
+        const mockWrapper = {
+          id: Math.random().toString(36).substring(2, 15),
+          element,
+          isMain: options.isMain || false,
+          state: "LOADING",
+          isPlaying: false,
+          play: vi.fn().mockImplementation(async () => {
+            return element.play();
+          }),
+          pause: vi.fn().mockImplementation(() => {
+            element.pause();
+          }),
+          isEnded: vi.fn().mockReturnValue(false),
+          connectToAudioContext: vi.fn(),
+          disconnectFromAudioContext: vi.fn(),
+        };
+        
+        // Define currentTime getter/setter (replaces getCurrentTime and seekTo)
+        Object.defineProperty(mockWrapper, 'currentTime', {
+          get: vi.fn().mockImplementation(() => element.currentTime),
+          set: vi.fn().mockImplementation((time) => {
+            element.currentTime = time;
+          }),
+        });
+        
+        // Define duration getter (replaces getDuration)
+        Object.defineProperty(mockWrapper, 'duration', {
+          get: vi.fn().mockReturnValue(100),
+        });
+        
+        return mockWrapper;
+      }),
   };
 });
 
@@ -167,15 +181,7 @@ describe("MediaSync", () => {
       // Initialize and setup test
       mediaSyncElement.initialize();
       
-      // Access the MediaElementWrapper instances to properly mock them
-      const mediaElements = (mediaSyncElement as any).mediaElements;
-      
-      // Set up a proper mock for seekTo that actually updates the time
-      mediaElements.forEach((wrapper: MediaElementWrapper) => {
-        wrapper.seekTo = vi.fn((time: number) => {
-          wrapper.element.currentTime = time;
-        });
-      });
+      // The mock wrappers should already have the currentTime property correctly defined
       
       // Set video1 to a new time
       video1.currentTime = 30;
@@ -264,15 +270,7 @@ describe("MediaSync", () => {
       // Initialize and setup test
       mediaSyncElement.initialize();
       
-      // Access the MediaElementWrapper instances to properly mock them
-      const mediaElements = (mediaSyncElement as any).mediaElements;
-      
-      // Set up a proper mock for seekTo that actually updates the time
-      mediaElements.forEach((wrapper: MediaElementWrapper) => {
-        wrapper.seekTo = vi.fn((time: number) => {
-          wrapper.element.currentTime = time;
-        });
-      });
+      // The mock wrappers should already have the currentTime property correctly defined
       
       // Set video1 to a new time
       video1.currentTime = 45;
@@ -375,15 +373,7 @@ describe("MediaSync", () => {
       // Initialize and setup test
       mediaSyncElement.initialize();
       
-      // Access the MediaElementWrapper instances to properly mock them
-      const mediaElements = (mediaSyncElement as any).mediaElements;
-      
-      // Set up a proper mock for seekTo that actually updates the time
-      mediaElements.forEach((wrapper: MediaElementWrapper) => {
-        wrapper.seekTo = vi.fn((time: number) => {
-          wrapper.element.currentTime = time;
-        });
-      });
+      // The mock wrappers should already have the currentTime property correctly defined
       
       // Set initial times
       video1.currentTime = 10;
@@ -410,27 +400,12 @@ describe("MediaSync", () => {
       const video1 = document.createElement("video");
       const video2 = document.createElement("video");
       
-      // Create spy for seekTo method
-      const seekToSpy = vi.fn((time) => { 
-        // Mock implementation to update the currentTime
-        video2.currentTime = time;
-      });
-      
       mediaSyncElement.appendChild(video1);
       mediaSyncElement.appendChild(video2);
       document.body.appendChild(mediaSyncElement);
       
       // Initialize the element
       mediaSyncElement.initialize();
-      
-      // Override the MediaElementWrapper.seekTo implementation after initialization
-      // to track calls
-      const mediaElements = (mediaSyncElement as any).mediaElements;
-      mediaElements.forEach((wrapper: any) => {
-        if (wrapper.element === video2) {
-          wrapper.seekTo = seekToSpy;
-        }
-      });
       
       // Trigger several seeking events in quick succession
       for (let i = 0; i < 5; i++) {
@@ -441,10 +416,8 @@ describe("MediaSync", () => {
       // Run all timers to allow debounced functions to execute
       vi.runAllTimers();
       
-      // Verify that seekTo was called (actual number depends on implementation)
-      // But we should verify that at least it was called with the last time value
-      expect(seekToSpy).toHaveBeenCalled();
-      expect(seekToSpy).toHaveBeenCalledWith(40); // Last time value (4 * 10)
+      // Verify that video2 time was synced to the last time value of video1
+      expect(video2.currentTime).toBe(40); // Last time value (4 * 10)
       
       // Restore real timers
       vi.useRealTimers();
