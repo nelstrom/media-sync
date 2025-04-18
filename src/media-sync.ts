@@ -137,7 +137,7 @@ export class MediaSync extends HTMLElement {
    * Check if any media element is currently playing
    */
   private isAnyMediaPlaying(): boolean {
-    return this.mediaElements.some(media => !media.element.paused);
+    return this.mediaElements.some(media => media.isPlaying());
   }
   
   /**
@@ -260,10 +260,10 @@ export class MediaSync extends HTMLElement {
     
     // Find the main element
     const mainElement = this.mediaElements.find(media => media.isMain) || this.mediaElements[0];
-    const mainTime = mainElement.element.currentTime;
+    const mainTime = mainElement.currentTime;
     
     // Skip if main element is not playing
-    if (mainElement.element.paused) {
+    if (mainElement.isPaused()) {
       return;
     }
     
@@ -272,7 +272,7 @@ export class MediaSync extends HTMLElement {
       // Calculate drift in milliseconds and round to nearest integer
       const delta = (media === mainElement) ? 
         0 : // No drift for the main track
-        Math.round((media.element.currentTime - mainTime) * 1000);
+        Math.round((media.currentTime - mainTime) * 1000);
       
       return {
         id: media.id,
@@ -331,16 +331,16 @@ export class MediaSync extends HTMLElement {
     
     // Find the main element
     const mainElement = this.mediaElements.find(media => media.isMain) || this.mediaElements[0];
-    const mainTime = mainElement.element.currentTime;
+    const mainTime = mainElement.currentTime;
     
     // Skip correction if main element is not playing
-    if (mainElement.element.paused) {
+    if (mainElement.isPaused()) {
       return;
     }
     
     // Find tracks that have drifted beyond the threshold
-    const driftedTracks = this.otherTracks(mainElement.element).filter(media => {
-      const drift = Math.abs(Math.round((media.element.currentTime - mainTime) * 1000));
+    const driftedTracks = this.otherTracks(mainElement).filter(media => {
+      const drift = Math.abs(Math.round((media.currentTime - mainTime) * 1000));
       return drift > DRIFT_CORRECTION_THRESHOLD;
     });
     
@@ -561,7 +561,7 @@ export class MediaSync extends HTMLElement {
       this.isSyncingSeeking = false;
       
       // If all elements are playing after seeking, restart drift sampling and correction
-      const allPlaying = this.mediaElements.every(media => !media.element.paused);
+      const allPlaying = this.mediaElements.every(media => media.isPlaying());
       if (allPlaying) {
         this.startDriftSampling();
         this.startDriftCorrection();
@@ -582,8 +582,27 @@ export class MediaSync extends HTMLElement {
     await this.playTracks();
   }
 
-  private otherTracks(exludeElement: HTMLMediaElement) {
-    return this.mediaElements.filter((me) => me.element !== exludeElement);
+  /**
+   * Returns all media wrappers except the specified one
+   * @param wrapperToExclude The media wrapper to exclude from the result
+   */
+  private otherTracks(wrapperToExclude: MediaElementWrapper): MediaElementWrapper[];
+  
+  /**
+   * Returns all media wrappers except the one with the specified element
+   * @param elementToExclude The media element to exclude its wrapper from the result
+   */
+  private otherTracks(elementToExclude: HTMLMediaElement): MediaElementWrapper[];
+  
+  private otherTracks(exclude: MediaElementWrapper | HTMLMediaElement): MediaElementWrapper[] {
+    if (exclude instanceof HTMLMediaElement) {
+      // If we're passed an HTMLMediaElement, we need to find the wrapper for it
+      // Use private access to the element via 'any' type cast since it's internal
+      return this.mediaElements.filter((me) => (me as any)._element !== exclude);
+    } else {
+      // If we're passed a MediaElementWrapper, just filter it out
+      return this.mediaElements.filter((me) => me !== exclude);
+    }
   }
 
   private async playTracks(mediaElements = this.mediaElements): Promise<void> {
@@ -616,7 +635,7 @@ export class MediaSync extends HTMLElement {
       await Promise.all(playPromises);
       
       // Start drift sampling and correction if all tracks are playing
-      const allPlaying = this.mediaElements.every(media => !media.element.paused);
+      const allPlaying = this.mediaElements.every(media => media.isPlaying());
       if (allPlaying) {
         this.startDriftSampling();
         this.startDriftCorrection();
@@ -687,10 +706,10 @@ export class MediaSync extends HTMLElement {
     const mainElement = this.mediaElements.find(media => media.isMain);
     
     if (mainElement) {
-      return mainElement.element.currentTime;
+      return mainElement.currentTime;
     }
     
-    return this.mediaElements[0].element.currentTime;
+    return this.mediaElements[0].currentTime;
   }
   
   /**

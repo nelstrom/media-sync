@@ -1,5 +1,3 @@
-import { MediaState, VALID_STATE_TRANSITIONS } from './constants';
-
 /**
  * Simple logger utility
  */
@@ -13,20 +11,6 @@ export const Logger = {
   },
   enableDebug: true
 };
-
-/**
- * Checks if a state transition is valid
- */
-export function isValidStateTransition(
-  currentState: MediaState,
-  nextState: MediaState
-): boolean {
-  const validNextStates = VALID_STATE_TRANSITIONS[currentState];
-  if (!validNextStates) {
-    return false;
-  }
-  return validNextStates.includes(nextState);
-}
 
 /**
  * Creates a debounced function that delays invoking func until after wait milliseconds

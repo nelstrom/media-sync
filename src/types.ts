@@ -1,4 +1,3 @@
-import { MediaState } from './constants';
 
 /**
  * Media element wrapper interface
@@ -8,21 +7,6 @@ export interface MediaElementWrapper {
    * The unique ID of the media element
    */
   id: string;
-  
-  /**
-   * The original HTML media element
-   */
-  element: HTMLMediaElement;
-  
-  /**
-   * Current state of the media element
-   */
-  state: MediaState;
-  
-  /**
-   * Whether this element is currently playing
-   */
-  isPlaying: boolean;
   
   /**
    * Whether this is the main media element that controls synchronization
@@ -58,6 +42,16 @@ export interface MediaElementWrapper {
    * Check if the media has ended
    */
   isEnded(): boolean;
+  
+  /**
+   * Check if the media is currently playing
+   */
+  isPlaying(): boolean;
+  
+  /**
+   * Check if the media is currently paused
+   */
+  isPaused(): boolean;
   
   /**
    * Connect to Web Audio API context
