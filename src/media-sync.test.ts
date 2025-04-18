@@ -423,4 +423,129 @@ describe("MediaSync", () => {
       vi.useRealTimers();
     });
   });
+  
+  describe("disabled attribute", () => {
+    it("should not synchronize media elements when disabled is set", () => {
+      // Setup fake timers
+      vi.useFakeTimers();
+      
+      // Create element with two videos
+      mediaSyncElement = document.createElement("media-sync") as MediaSync;
+      mediaSyncElement.setAttribute("disabled", "");
+      
+      const video1 = document.createElement("video");
+      const video2 = document.createElement("video");
+      
+      mediaSyncElement.appendChild(video1);
+      mediaSyncElement.appendChild(video2);
+      document.body.appendChild(mediaSyncElement);
+      
+      // Initialize the element
+      mediaSyncElement.initialize();
+      
+      // Set initial times
+      video1.currentTime = 10;
+      video2.currentTime = 20;
+      
+      // Dispatch seeking event on the first video
+      video1.dispatchEvent(CustomEvents.user.seeking);
+      
+      // Run all timers to allow debounced functions to execute
+      vi.runAllTimers();
+      
+      // Verify that video2 time was NOT synced to video1 (still at original time)
+      expect(video2.currentTime).toBe(20);
+      
+      // Now enable synchronization by removing the disabled attribute
+      mediaSyncElement.removeAttribute("disabled");
+      
+      // Trigger seeking again
+      video1.currentTime = 30;
+      video1.dispatchEvent(CustomEvents.user.seeking);
+      
+      // Run all timers to allow debounced functions to execute
+      vi.runAllTimers();
+      
+      // Verify that video2 IS now synced to video1 after enabling
+      expect(video2.currentTime).toBe(30);
+      
+      // Test with property setter too
+      mediaSyncElement.disabled = true;
+      
+      // Trigger seeking again
+      video1.currentTime = 40;
+      video1.dispatchEvent(CustomEvents.user.seeking);
+      
+      // Run all timers to allow debounced functions to execute
+      vi.runAllTimers();
+      
+      // Verify that video2 is still at the previous time (not synced)
+      expect(video2.currentTime).toBe(30);
+      
+      // Restore real timers
+      vi.useRealTimers();
+    });
+    
+    it("should make public methods no-ops when disabled", () => {
+      // Create element with two videos
+      mediaSyncElement = document.createElement("media-sync") as MediaSync;
+      mediaSyncElement.setAttribute("disabled", "");
+      
+      const video1 = document.createElement("video");
+      const video2 = document.createElement("video");
+      
+      // Create spy functions for play and pause
+      const playFn1 = vi.fn().mockResolvedValue(undefined);
+      const playFn2 = vi.fn().mockResolvedValue(undefined);
+      const pauseFn1 = vi.fn();
+      const pauseFn2 = vi.fn();
+      video1.play = playFn1;
+      video2.play = playFn2;
+      video1.pause = pauseFn1;
+      video2.pause = pauseFn2;
+      
+      mediaSyncElement.appendChild(video1);
+      mediaSyncElement.appendChild(video2);
+      document.body.appendChild(mediaSyncElement);
+      
+      // Initialize and reset mocks before testing
+      mediaSyncElement.initialize();
+      vi.clearAllMocks();
+      
+      // Set initial times
+      video1.currentTime = 10;
+      video2.currentTime = 20;
+      
+      // Test play() method - should be a no-op
+      mediaSyncElement.play();
+      
+      // Neither video's play method should be called
+      expect(playFn1).not.toHaveBeenCalled();
+      expect(playFn2).not.toHaveBeenCalled();
+      
+      // Test pause() method - should be a no-op
+      mediaSyncElement.pause();
+      
+      // Neither video's pause method should be called
+      expect(pauseFn1).not.toHaveBeenCalled();
+      expect(pauseFn2).not.toHaveBeenCalled();
+      
+      // Test currentTime setter - should be a no-op
+      mediaSyncElement.currentTime = 50;
+      
+      // Times should remain unchanged
+      expect(video1.currentTime).toBe(10);
+      expect(video2.currentTime).toBe(20);
+      
+      // Now enable the component and verify methods work
+      mediaSyncElement.disabled = false;
+      
+      // Test play() method again - should now work
+      mediaSyncElement.play();
+      
+      // Both videos' play methods should be called
+      expect(playFn1).toHaveBeenCalled();
+      expect(playFn2).toHaveBeenCalled();
+    });
+  });
 });

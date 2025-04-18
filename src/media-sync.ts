@@ -65,10 +65,25 @@ export class MediaSync extends HTMLElement {
   // Web Audio API integration
   private audioContext: AudioContext | null = null;
   private useWebAudio: boolean = true; // Use Web Audio API for all browsers
+  
+  // Boolean property to disable synchronization
+  private _disabled: boolean = false;
+  
+  // Define observed attributes for the element
+  static get observedAttributes() {
+    return ['disabled'];
+  }
 
   constructor() {
     super();
     Logger.debug("MediaSync: Initializing");
+    
+    // Check for disabled attribute in constructor
+    if (this.hasAttribute('disabled')) {
+      this._disabled = true;
+      Logger.debug("MediaSync: Disabled by attribute");
+    }
+    
     Logger.debug("Using Web Audio API for precise synchronization");
   }
 
@@ -94,10 +109,66 @@ export class MediaSync extends HTMLElement {
   }
   
   /**
+   * Called when attributes are changed, added, or removed
+   */
+  attributeChangedCallback(name: string, _oldValue: string, newValue: string): void {
+    if (name === 'disabled') {
+      // Convert attribute value to boolean
+      this._disabled = newValue !== null;
+      Logger.debug(`MediaSync: ${this._disabled ? 'Disabled' : 'Enabled'} synchronization`);
+      
+      if (this._disabled) {
+        // If disabled, stop all synchronization
+        this.stopDriftSampling();
+        this.stopDriftCorrection();
+        // Disconnect from Web Audio API
+        this.cleanupAudioContext();
+      } else if (this.isAnyMediaPlaying()) {
+        // If enabled and media is playing, restart synchronization
+        this.startDriftSampling();
+        this.startDriftCorrection();
+        // Reinitialize Web Audio API
+        this.initAudioContext();
+      }
+    }
+  }
+  
+  /**
+   * Check if any media element is currently playing
+   */
+  private isAnyMediaPlaying(): boolean {
+    return this.mediaElements.some(media => !media.element.paused);
+  }
+  
+  /**
+   * Get the disabled state
+   */
+  get disabled(): boolean {
+    return this._disabled;
+  }
+  
+  /**
+   * Set the disabled state
+   */
+  set disabled(value: boolean) {
+    if (this._disabled !== value) {
+      this._disabled = value;
+      
+      // Update the attribute to match the property
+      if (value) {
+        this.setAttribute('disabled', '');
+      } else {
+        this.removeAttribute('disabled');
+      }
+    }
+  }
+  
+  /**
    * Initialize the Web Audio API context
    */
   private initAudioContext(): void {
-    if (!this.useWebAudio || this.audioContext) {
+    // Early return if disabled, audio already initialized, or audio API not used
+    if (this._disabled || !this.useWebAudio || this.audioContext) {
       return;
     }
     
@@ -154,8 +225,8 @@ export class MediaSync extends HTMLElement {
    * Start sampling drift between media elements
    */
   private startDriftSampling(): void {
-    if (this.driftSamplingIntervalId !== null) {
-      // Already sampling
+    // Don't start if disabled or already sampling
+    if (this._disabled || this.driftSamplingIntervalId !== null) {
       return;
     }
     
@@ -182,7 +253,8 @@ export class MediaSync extends HTMLElement {
    * Take a single drift sample
    */
   private sampleDrift(): void {
-    if (this.mediaElements.length <= 1) {
+    // Skip if disabled or not enough media elements
+    if (this._disabled || this.mediaElements.length <= 1) {
       return; // Need at least 2 media elements to measure drift
     }
     
@@ -220,8 +292,8 @@ export class MediaSync extends HTMLElement {
    * Start the drift correction mechanism
    */
   private startDriftCorrection(): void {
-    // Don't start if already running or if correction is disabled
-    if (this.driftCorrectionIntervalId !== null || !this.driftCorrectionEnabled) {
+    // Don't start if disabled, already running, or if correction is disabled
+    if (this._disabled || this.driftCorrectionIntervalId !== null || !this.driftCorrectionEnabled) {
       return;
     }
     
@@ -247,7 +319,8 @@ export class MediaSync extends HTMLElement {
    * Correct drift between tracks if it exceeds the threshold
    */
   private correctDrift(): void {
-    if (this.mediaElements.length <= 1) {
+    // Skip if disabled or not enough media elements
+    if (this._disabled || this.mediaElements.length <= 1) {
       return; // Need at least 2 media elements to correct drift
     }
     
@@ -333,6 +406,12 @@ export class MediaSync extends HTMLElement {
       const handleUserSeeking = debounce(() => {
         Logger.debug(`User seeking event from element ${index}`);
         
+        // Skip synchronization if disabled
+        if (this._disabled) {
+          Logger.debug("Synchronization is disabled, skipping seek sync");
+          return;
+        }
+        
         // Store the time for reference
         this.lastSeekTime = element.currentTime;
         
@@ -349,6 +428,13 @@ export class MediaSync extends HTMLElement {
       // Handle programmatic seeking events
       element.addEventListener(CustomEventNames.programmatic.seeking, () => {
         Logger.debug(`Programmatic seeking event from element ${index}`);
+        
+        // Skip synchronization if disabled
+        if (this._disabled) {
+          Logger.debug("Synchronization is disabled, skipping seek sync");
+          return;
+        }
+        
         // Get all tracks except the source and seek them
         const targetTracks = this.otherTracks(element);
         this.seekTracks(targetTracks, element.currentTime);
@@ -371,24 +457,52 @@ export class MediaSync extends HTMLElement {
       // Handle user-initiated play events
       element.addEventListener(CustomEventNames.user.play, () => {
         Logger.debug(`User play event from element ${index}`);
+        
+        // Skip synchronization if disabled
+        if (this._disabled) {
+          Logger.debug("Synchronization is disabled, skipping play sync");
+          return;
+        }
+        
         this.playTracks(this.otherTracks(element));
       });
 
       // Handle programmatic play events
       element.addEventListener(CustomEventNames.programmatic.play, () => {
         Logger.debug(`Programmatic play event from element ${index}`);
+        
+        // Skip synchronization if disabled
+        if (this._disabled) {
+          Logger.debug("Synchronization is disabled, skipping play sync");
+          return;
+        }
+        
         this.playTracks(this.otherTracks(element));
       });
 
       // Handle user-initiated pause events
       element.addEventListener(CustomEventNames.user.pause, () => {
         Logger.debug(`User pause event from element ${index}`);
+        
+        // Skip synchronization if disabled
+        if (this._disabled) {
+          Logger.debug("Synchronization is disabled, skipping pause sync");
+          return;
+        }
+        
         this.pauseTracks(this.otherTracks(element));
       });
 
       // Handle programmatic pause events
       element.addEventListener(CustomEventNames.programmatic.pause, () => {
         Logger.debug(`Programmatic pause event from element ${index}`);
+        
+        // Skip synchronization if disabled
+        if (this._disabled) {
+          Logger.debug("Synchronization is disabled, skipping pause sync");
+          return;
+        }
+        
         this.pauseTracks(this.otherTracks(element));
       });
 
@@ -419,6 +533,12 @@ export class MediaSync extends HTMLElement {
     
     if (this.isSyncingSeeking) {
       Logger.debug("seekTracks called while syncing. Skipping...");
+      return;
+    }
+    
+    // Skip synchronization if disabled
+    if (this._disabled) {
+      Logger.debug("Synchronization is disabled, skipping seek sync");
       return;
     }
     
@@ -453,6 +573,12 @@ export class MediaSync extends HTMLElement {
    * Play all media elements
    */
   public async play(): Promise<void> {
+    // No-op if disabled
+    if (this._disabled) {
+      Logger.debug("MediaSync is disabled, play() is a no-op");
+      return;
+    }
+    
     await this.playTracks();
   }
 
@@ -478,11 +604,9 @@ export class MediaSync extends HTMLElement {
       this.isSyncingPlay = true;
       
       // When using Web Audio API, ensure the audio context is resumed
-      if (this.useWebAudio && this.audioContext) {
-        if (this.audioContext.state === 'suspended') {
-          await this.audioContext.resume();
-          Logger.debug("Resumed audio context");
-        }
+      if (this.useWebAudio && this.audioContext && this.audioContext.state === 'suspended') {
+        await this.audioContext.resume();
+        Logger.debug("Resumed audio context");
       }
 
       // Play all media elements
@@ -511,6 +635,12 @@ export class MediaSync extends HTMLElement {
    * Pause all media elements
    */
   public pause(): void {
+    // No-op if disabled
+    if (this._disabled) {
+      Logger.debug("MediaSync is disabled, pause() is a no-op");
+      return;
+    }
+    
     this.pauseTracks();
   }
 
@@ -567,7 +697,13 @@ export class MediaSync extends HTMLElement {
    * Set the current playback time for all media elements
    */
   public set currentTime(time: number) {
-    // Use the seekTracks method to handle the seeking
+    // No-op if disabled
+    if (this._disabled) {
+      Logger.debug("MediaSync is disabled, setting currentTime is a no-op");
+      return;
+    }
+    
+    // Use the seekTracks method to handle the seeking for all elements
     this.seekTracks(this.mediaElements, time);
   }
 }
