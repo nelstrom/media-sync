@@ -419,7 +419,7 @@ export class MediaSync extends HTMLElement {
         setTimeout(() => {
           if (this.lastSeekTime !== null) {
             // Get all tracks except the source and seek them
-            const targetTracks = this.otherTracks(element);
+            const targetTracks = this.otherTracks(wrapper);
             this.seekTracks(targetTracks, this.lastSeekTime);
           }
         }, SEEK_DEBOUNCE_DELAY);
@@ -436,7 +436,7 @@ export class MediaSync extends HTMLElement {
         }
         
         // Get all tracks except the source and seek them
-        const targetTracks = this.otherTracks(element);
+        const targetTracks = this.otherTracks(wrapper);
         this.seekTracks(targetTracks, element.currentTime);
       });
       
@@ -464,7 +464,10 @@ export class MediaSync extends HTMLElement {
           return;
         }
         
-        this.playTracks(this.otherTracks(element));
+        // Find other media elements (not this one) to play
+        const othersToPlay = this.otherTracks(wrapper);
+        Logger.debug(`Playing ${othersToPlay.length} other media elements (excluding source element)`);
+        this.playTracks(othersToPlay);
       });
 
       // Handle programmatic play events
@@ -477,7 +480,10 @@ export class MediaSync extends HTMLElement {
           return;
         }
         
-        this.playTracks(this.otherTracks(element));
+        // Find other media elements (not this one) to play
+        const othersToPlay = this.otherTracks(wrapper);
+        Logger.debug(`Playing ${othersToPlay.length} other media elements (excluding source element)`);
+        this.playTracks(othersToPlay);
       });
 
       // Handle user-initiated pause events
@@ -490,7 +496,10 @@ export class MediaSync extends HTMLElement {
           return;
         }
         
-        this.pauseTracks(this.otherTracks(element));
+        // Find other media elements (not this one) to pause
+        const othersToPause = this.otherTracks(wrapper);
+        Logger.debug(`Pausing ${othersToPause.length} other media elements (excluding source element)`);
+        this.pauseTracks(othersToPause);
       });
 
       // Handle programmatic pause events
@@ -503,7 +512,10 @@ export class MediaSync extends HTMLElement {
           return;
         }
         
-        this.pauseTracks(this.otherTracks(element));
+        // Find other media elements (not this one) to pause
+        const othersToPause = this.otherTracks(wrapper);
+        Logger.debug(`Pausing ${othersToPause.length} other media elements (excluding source element)`);
+        this.pauseTracks(othersToPause);
       });
 
       this.mediaElements.push(wrapper);
@@ -586,23 +598,27 @@ export class MediaSync extends HTMLElement {
    * Returns all media wrappers except the specified one
    * @param wrapperToExclude The media wrapper to exclude from the result
    */
-  private otherTracks(wrapperToExclude: MediaElementWrapper): MediaElementWrapper[];
-  
-  /**
-   * Returns all media wrappers except the one with the specified element
-   * @param elementToExclude The media element to exclude its wrapper from the result
-   */
-  private otherTracks(elementToExclude: HTMLMediaElement): MediaElementWrapper[];
-  
-  private otherTracks(exclude: MediaElementWrapper | HTMLMediaElement): MediaElementWrapper[] {
-    if (exclude instanceof HTMLMediaElement) {
-      // If we're passed an HTMLMediaElement, we need to find the wrapper for it
-      // Use private access to the element via 'any' type cast since it's internal
-      return this.mediaElements.filter((me) => (me as any)._element !== exclude);
-    } else {
-      // If we're passed a MediaElementWrapper, just filter it out
-      return this.mediaElements.filter((me) => me !== exclude);
-    }
+  private otherTracks(wrapperToExclude: MediaElementWrapper): MediaElementWrapper[] {
+    // In the test environment, we need to be more careful about finding
+    // the correct wrapper that matches the source element
+    
+    // Use the element reference as the primary matching criterion
+    const sourceElement = wrapperToExclude.element;
+    
+    return this.mediaElements.filter((wrapper) => {
+      // If we have direct reference equality, definitely exclude
+      if (wrapper === wrapperToExclude) {
+        return false;
+      }
+      
+      // Exclude any wrapper whose underlying element matches the source element
+      // This is crucial for test mock environment
+      if (wrapper.element === sourceElement) {
+        return false;
+      }
+      
+      return true;
+    });
   }
 
   private async playTracks(mediaElements = this.mediaElements): Promise<void> {

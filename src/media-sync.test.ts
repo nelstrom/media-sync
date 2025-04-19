@@ -164,12 +164,12 @@ describe("MediaSync", () => {
       const wrapper1 = wrapperMap.get(video1);
       const wrapper2 = wrapperMap.get(video2);
       
-      // Create spies for our wrapper's play methods
-      const playFn1 = vi.spyOn(wrapper1, "play");
-      const playFn2 = vi.spyOn(wrapper2, "play");
-      
-      // Reset mocks before testing
+      // Reset mock counters before testing
       vi.clearAllMocks();
+      
+      // Get functions directly from wrappers
+      const playFn1 = wrapper1.play;
+      const playFn2 = wrapper2.play;
 
       // Dispatch user play event on video1
       video1.dispatchEvent(CustomEvents.user.play);
@@ -202,12 +202,12 @@ describe("MediaSync", () => {
       const wrapper1 = wrapperMap.get(video1);
       const wrapper2 = wrapperMap.get(video2);
       
-      // Create spies for our wrapper's pause methods
-      const pauseFn1 = vi.spyOn(wrapper1, "pause");
-      const pauseFn2 = vi.spyOn(wrapper2, "pause");
-      
-      // Reset mocks before testing
+      // Reset mock counters before testing
       vi.clearAllMocks();
+      
+      // Get functions directly from wrappers
+      const pauseFn1 = wrapper1.pause;
+      const pauseFn2 = wrapper2.pause;
 
       // Dispatch user pause event on video1
       video1.dispatchEvent(CustomEvents.user.pause);
@@ -283,12 +283,12 @@ describe("MediaSync", () => {
       const wrapper1 = wrapperMap.get(video1);
       const wrapper2 = wrapperMap.get(video2);
       
-      // Create spies for our wrapper's play methods
-      const playFn1 = vi.spyOn(wrapper1, "play");
-      const playFn2 = vi.spyOn(wrapper2, "play");
-      
-      // Reset mocks before testing
+      // Reset mock counters before testing
       vi.clearAllMocks();
+      
+      // Get functions directly from wrappers
+      const playFn1 = wrapper1.play;
+      const playFn2 = wrapper2.play;
 
       // Dispatch programmatic play event on video1
       video1.dispatchEvent(CustomEvents.programmatic.play);
@@ -321,12 +321,12 @@ describe("MediaSync", () => {
       const wrapper1 = wrapperMap.get(video1);
       const wrapper2 = wrapperMap.get(video2);
       
-      // Create spies for our wrapper's pause methods
-      const pauseFn1 = vi.spyOn(wrapper1, "pause");
-      const pauseFn2 = vi.spyOn(wrapper2, "pause");
-      
-      // Reset mocks before testing
+      // Reset mock counters before testing
       vi.clearAllMocks();
+      
+      // Get functions directly from wrappers
+      const pauseFn1 = wrapper1.pause;
+      const pauseFn2 = wrapper2.pause;
 
       // Dispatch programmatic pause event on video1
       video1.dispatchEvent(CustomEvents.programmatic.pause);
