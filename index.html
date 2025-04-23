@@ -116,6 +116,25 @@
       color: #555;
     }
   </style>
+  <script type="module">
+    // Import the self-registering module
+    import './dist/media-sync-element.js';
+
+    const single = document.querySelector('#single');
+    single.addEventListener('pause', (e) => { console.log('$$$: pause', e) })
+    single.addEventListener('play', (e) => { console.log('$$$: play', e) })
+    single.addEventListener('seeking', (e) => { console.log('$$$: seeking', e) })
+    single.addEventListener('waiting', (e) => { console.log('$$$: waiting', { e, state: single.readyState}) })
+    single.addEventListener('progress', (e) => { console.log('$$$: progress', { e, state: single.readyState}) })
+    single.addEventListener('loadstart', (e) => { console.log('$$$: loadstart', { e, state: single.readyState}) })
+    single.addEventListener('loadeddata', (e) => { console.log('$$$: loadeddata', { e, state: single.readyState}) })
+    single.addEventListener('canplaythrough', (e) => { console.log('$$$: canplaythrough', { e, state: single.readyState}) })
+    
+    // Alternative usage: 
+    // import { MediaSync } from './dist/media-sync.js';
+    // customElements.define('media-sync', MediaSync);
+    </script>
+  
 </head>
 <body>
   <h1>Media Sync Demo</h1>
@@ -236,18 +255,5 @@
     </div>
   </div>
   
-  <script type="module">
-    // Import the self-registering module
-    import './dist/media-sync-element.js';
-
-    const single = document.querySelector('#single');
-    single.addEventListener('pause', (e) => { console.log('pause', e) })
-    single.addEventListener('play', (e) => { console.log('play', e) })
-    single.addEventListener('seeking', (e) => { console.log('seeking', e) })
-    
-    // Alternative usage: 
-    // import { MediaSync } from './dist/media-sync.js';
-    // customElements.define('media-sync', MediaSync);
-  </script>
 </body>
 </html>
