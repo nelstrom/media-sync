@@ -255,5 +255,54 @@
     </div>
   </div>
   
+  <div class="section audio-example">
+    <h2>Main track is shorter than others</h2>
+    <p class="description">This example demonstrates syncing two audio tracks of different duration. The main track is shorter than the other track. When the main track ends, the other track should also end.</p>
+    
+    <div class="demo-container">
+      <media-sync>
+        <div>
+          <div class="track-label">Melody (duration 10s)</div>
+          <audio controls loop>
+            <source src="samples/retirement-song/RetirementSong-melody-truncated.m4a" type="audio/mp4">
+            Your browser does not support the audio element.
+          </audio>
+        </div>
+        
+        <div>
+          <div class="track-label">Descant (duration 20s)</div>
+          <audio controls>
+            <source src="samples/retirement-song/RetirementSong-descant.m4a" type="audio/mp4">
+            Your browser does not support the audio element.
+          </audio>
+        </div>
+      </media-sync>
+    </div>
+  </div>
+
+  <div class="section audio-example">
+    <h2>Main track is longer than others</h2>
+    <p class="description">This example demonstrates syncing two audio tracks of different duration. The main track is longer than the other track. The main track should play through to the end. When the shorter track ends, it should not affect playback of the main track.</p>
+    
+    <div class="demo-container">
+      <media-sync>
+        <div>
+          <div class="track-label">Descant (duration 20s)</div>
+          <audio controls loop>
+            <source src="samples/retirement-song/RetirementSong-descant.m4a" type="audio/mp4">
+            Your browser does not support the audio element.
+          </audio>
+        </div>
+        
+        <div>
+          <div class="track-label">Melody (duration 10s)</div>
+          <audio controls>
+            <source src="samples/retirement-song/RetirementSong-melody-truncated.m4a" type="audio/mp4">
+            Your browser does not support the audio element.
+          </audio>
+        </div>
+      </media-sync>
+    </div>
+  </div>
 </body>
 </html>
