@@ -426,7 +426,7 @@ export class MediaSync extends HTMLElement {
       }, SEEK_DEBOUNCE_DELAY);
       
       // Handle programmatic seeking events
-      element.addEventListener(CustomEventNames.programmatic.seeking, () => {
+      wrapper.addEventListener(CustomEventNames.programmatic.seeking, () => {
         Logger.debug(`Programmatic seeking event from element ${index}`);
         
         // Skip synchronization if disabled
@@ -441,21 +441,21 @@ export class MediaSync extends HTMLElement {
       });
       
       // Handle user-initiated seeking
-      element.addEventListener(CustomEventNames.user.seeking, () => {
+      wrapper.addEventListener(CustomEventNames.user.seeking, () => {
         handleUserSeeking();
       });
 
       // Log seeked events
-      element.addEventListener(CustomEventNames.programmatic.seeked, () => {
+      wrapper.addEventListener(CustomEventNames.programmatic.seeked, () => {
         Logger.debug(`Programmatic seeked event from element ${index}`);
       });
       
-      element.addEventListener(CustomEventNames.user.seeked, () => {
+      wrapper.addEventListener(CustomEventNames.user.seeked, () => {
         Logger.debug(`User seeked event from element ${index}`);
       });
 
       // Handle user-initiated play events
-      element.addEventListener(CustomEventNames.user.play, () => {
+      wrapper.addEventListener(CustomEventNames.user.play, () => {
         Logger.debug(`User play event from element ${index}`);
         
         // Skip synchronization if disabled
@@ -471,7 +471,7 @@ export class MediaSync extends HTMLElement {
       });
 
       // Handle programmatic play events
-      element.addEventListener(CustomEventNames.programmatic.play, () => {
+      wrapper.addEventListener(CustomEventNames.programmatic.play, () => {
         Logger.debug(`Programmatic play event from element ${index}`);
         
         // Skip synchronization if disabled
@@ -487,7 +487,7 @@ export class MediaSync extends HTMLElement {
       });
 
       // Handle user-initiated pause events
-      element.addEventListener(CustomEventNames.user.pause, () => {
+      wrapper.addEventListener(CustomEventNames.user.pause, () => {
         Logger.debug(`User pause event from element ${index}`);
         
         // Skip synchronization if disabled
@@ -503,7 +503,7 @@ export class MediaSync extends HTMLElement {
       });
 
       // Handle programmatic pause events
-      element.addEventListener(CustomEventNames.programmatic.pause, () => {
+      wrapper.addEventListener(CustomEventNames.programmatic.pause, () => {
         Logger.debug(`Programmatic pause event from element ${index}`);
         
         // Skip synchronization if disabled

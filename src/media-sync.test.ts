@@ -1,5 +1,5 @@
 import { afterEach, beforeAll, describe, expect, it, vi } from "vitest";
-import { CustomEvents } from "./constants";
+import { CustomEventNames } from "./constants";
 import { MediaSync } from "./media-sync";
 
 // Need to define these mocks before any imports
@@ -37,7 +37,7 @@ vi.mock("./media-element-wrapper", () => {
         element.pause();
       });
       
-      // Create the wrapper object with necessary methods
+      // Create the wrapper object with necessary methods and event capabilities
       const mockWrapper = {
         id,
         // Private property, but exposed for testing
@@ -52,6 +52,32 @@ vi.mock("./media-element-wrapper", () => {
         isPaused: vi.fn().mockImplementation(() => element.paused),
         connectToAudioContext: vi.fn(),
         disconnectFromAudioContext: vi.fn(),
+        
+        // EventTarget methods
+        addEventListener: vi.fn().mockImplementation((eventName, handler) => {
+          // Store handlers for each event type
+          if (!mockWrapper._eventHandlers[eventName]) {
+            mockWrapper._eventHandlers[eventName] = [];
+          }
+          mockWrapper._eventHandlers[eventName].push(handler);
+        }),
+        
+        removeEventListener: vi.fn().mockImplementation((eventName, handler) => {
+          if (mockWrapper._eventHandlers[eventName]) {
+            mockWrapper._eventHandlers[eventName] = mockWrapper._eventHandlers[eventName]
+              .filter(h => h !== handler);
+          }
+        }),
+        
+        dispatchEvent: vi.fn().mockImplementation((event) => {
+          // Call all handlers for this event type
+          const handlers = mockWrapper._eventHandlers[event.type] || [];
+          handlers.forEach(handler => handler(event));
+          return true;
+        }),
+        
+        // Internal storage for event handlers
+        _eventHandlers: {},
                 
         // For compatibility with otherTracks method that uses internal accessor
         get element() {
@@ -171,8 +197,8 @@ describe("MediaSync", () => {
       const playFn1 = wrapper1.play;
       const playFn2 = wrapper2.play;
 
-      // Dispatch user play event on video1
-      video1.dispatchEvent(CustomEvents.user.play);
+      // Dispatch user play event on wrapper1 
+      wrapper1.dispatchEvent(new CustomEvent(CustomEventNames.user.play));
 
       // Verify wrapper2's play was called, but not wrapper1's again
       expect(playFn1).not.toHaveBeenCalled();
@@ -209,8 +235,8 @@ describe("MediaSync", () => {
       const pauseFn1 = wrapper1.pause;
       const pauseFn2 = wrapper2.pause;
 
-      // Dispatch user pause event on video1
-      video1.dispatchEvent(CustomEvents.user.pause);
+      // Dispatch user pause event on wrapper1
+      wrapper1.dispatchEvent(new CustomEvent(CustomEventNames.user.pause));
 
       // Verify wrapper2's pause was called, but not wrapper1's again
       expect(pauseFn1).not.toHaveBeenCalled();
@@ -233,7 +259,8 @@ describe("MediaSync", () => {
       // Initialize and setup test
       mediaSyncElement.initialize();
       
-      // Access wrapper map
+      // Access wrappers
+      const wrapper1 = wrapperMap.get(video1);
       const wrapper2 = wrapperMap.get(video2);
       
       // Create a spy on the wrapper's currentTime setter
@@ -242,8 +269,8 @@ describe("MediaSync", () => {
       // Set video1 to a new time
       video1.currentTime = 30;
       
-      // Dispatch user seeking event on video1
-      video1.dispatchEvent(CustomEvents.user.seeking);
+      // Dispatch user seeking event on wrapper1
+      wrapper1.dispatchEvent(new CustomEvent(CustomEventNames.user.seeking));
       
       // Advance all timers to trigger the debounce callback
       vi.runAllTimers();
@@ -290,8 +317,8 @@ describe("MediaSync", () => {
       const playFn1 = wrapper1.play;
       const playFn2 = wrapper2.play;
 
-      // Dispatch programmatic play event on video1
-      video1.dispatchEvent(CustomEvents.programmatic.play);
+      // Dispatch programmatic play event on wrapper1
+      wrapper1.dispatchEvent(new CustomEvent(CustomEventNames.programmatic.play));
 
       // Verify wrapper2's play was called, but not wrapper1's again
       expect(playFn1).not.toHaveBeenCalled();
@@ -328,8 +355,8 @@ describe("MediaSync", () => {
       const pauseFn1 = wrapper1.pause;
       const pauseFn2 = wrapper2.pause;
 
-      // Dispatch programmatic pause event on video1
-      video1.dispatchEvent(CustomEvents.programmatic.pause);
+      // Dispatch programmatic pause event on wrapper1
+      wrapper1.dispatchEvent(new CustomEvent(CustomEventNames.programmatic.pause));
 
       // Verify wrapper2's pause was called, but not wrapper1's again
       expect(pauseFn1).not.toHaveBeenCalled();
@@ -349,7 +376,8 @@ describe("MediaSync", () => {
       // Initialize and setup test
       mediaSyncElement.initialize();
       
-      // Access wrapper map
+      // Access wrappers
+      const wrapper1 = wrapperMap.get(video1);
       const wrapper2 = wrapperMap.get(video2);
       
       // Create a spy on the wrapper's currentTime setter
@@ -358,8 +386,8 @@ describe("MediaSync", () => {
       // Set video1 to a new time
       video1.currentTime = 45;
       
-      // Dispatch programmatic seeking event on video1
-      video1.dispatchEvent(CustomEvents.programmatic.seeking);
+      // Dispatch programmatic seeking event on wrapper1
+      wrapper1.dispatchEvent(new CustomEvent(CustomEventNames.programmatic.seeking));
       
       // Verify wrapper2's currentTime setter was called with the correct value
       expect(setCurrentTimeSpy).toHaveBeenCalledWith(45);
@@ -542,7 +570,8 @@ describe("MediaSync", () => {
       // Initialize the element
       mediaSyncElement.initialize();
       
-      // Access wrapper map
+      // Access wrappers
+      const wrapper1 = wrapperMap.get(video1);
       const wrapper2 = wrapperMap.get(video2);
       
       // Create a spy on the wrapper's currentTime setter
@@ -554,7 +583,7 @@ describe("MediaSync", () => {
       // Trigger several seeking events in quick succession
       for (let i = 0; i < 5; i++) {
         video1.currentTime = i * 10;
-        video1.dispatchEvent(CustomEvents.user.seeking);
+        wrapper1.dispatchEvent(new CustomEvent(CustomEventNames.user.seeking));
       }
       
       // Run all timers to allow debounced functions to execute
@@ -590,7 +619,8 @@ describe("MediaSync", () => {
       // Initialize the element
       mediaSyncElement.initialize();
       
-      // Access wrapper map
+      // Access wrappers
+      const wrapper1 = wrapperMap.get(video1);
       const wrapper2 = wrapperMap.get(video2);
       
       // Create a spy on the wrapper's currentTime setter
@@ -603,8 +633,8 @@ describe("MediaSync", () => {
       // Clear mocks before testing
       vi.clearAllMocks();
       
-      // Dispatch seeking event on the first video
-      video1.dispatchEvent(CustomEvents.user.seeking);
+      // Dispatch seeking event on the first wrapper
+      wrapper1.dispatchEvent(new CustomEvent(CustomEventNames.user.seeking));
       
       // Run all timers to allow debounced functions to execute
       vi.runAllTimers();
@@ -620,7 +650,7 @@ describe("MediaSync", () => {
       
       // Trigger seeking again
       video1.currentTime = 30;
-      video1.dispatchEvent(CustomEvents.user.seeking);
+      wrapper1.dispatchEvent(new CustomEvent(CustomEventNames.user.seeking));
       
       // Run all timers to allow debounced functions to execute
       vi.runAllTimers();
@@ -639,7 +669,7 @@ describe("MediaSync", () => {
       
       // Trigger seeking again
       video1.currentTime = 40;
-      video1.dispatchEvent(CustomEvents.user.seeking);
+      wrapper1.dispatchEvent(new CustomEvent(CustomEventNames.user.seeking));
       
       // Run all timers to allow debounced functions to execute
       vi.runAllTimers();

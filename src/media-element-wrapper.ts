@@ -1,11 +1,10 @@
-import { CustomEvents } from "./constants";
-import { MediaElementWrapper } from "./types";
+import { CustomEventNames } from "./constants";
 import { Logger } from "./utils";
 
 /**
  * Class that wraps and manages an individual HTML media element
  */
-export class MediaElementWrapperImpl implements MediaElementWrapper {
+export class MediaElementWrapperImpl extends EventTarget {
   public id: string;
   private _element: HTMLMediaElement;
   public isMain: boolean = false;
@@ -21,6 +20,7 @@ export class MediaElementWrapperImpl implements MediaElementWrapper {
       isMain?: boolean;
     } = {}
   ) {
+    super();
     this.id = Math.random().toString(36).substring(2, 15);
     this._element = element;
     this.isMain = options.isMain || false;
@@ -67,17 +67,17 @@ export class MediaElementWrapperImpl implements MediaElementWrapper {
 
     this._element.addEventListener("seeking", () => {
       if (this.isUserInitiated) {
-        this._element.dispatchEvent(CustomEvents.user.seeking);
+        this.dispatchEvent(new CustomEvent(CustomEventNames.user.seeking));
       } else {
-        this._element.dispatchEvent(CustomEvents.programmatic.seeking);
+        this.dispatchEvent(new CustomEvent(CustomEventNames.programmatic.seeking));
       }
     });
 
     this._element.addEventListener("seeked", () => {
       if (this.isUserInitiated) {
-        this._element.dispatchEvent(CustomEvents.user.seeked);
+        this.dispatchEvent(new CustomEvent(CustomEventNames.user.seeked));
       } else {
-        this._element.dispatchEvent(CustomEvents.programmatic.seeked);
+        this.dispatchEvent(new CustomEvent(CustomEventNames.programmatic.seeked));
       }
       this.isUserInitiated = true;
     });
@@ -94,9 +94,9 @@ export class MediaElementWrapperImpl implements MediaElementWrapper {
 
     this._element.addEventListener("play", () => {
       if (this.isUserInitiated) {
-        this._element.dispatchEvent(CustomEvents.user.play);
+        this.dispatchEvent(new CustomEvent(CustomEventNames.user.play));
       } else {
-        this._element.dispatchEvent(CustomEvents.programmatic.play);
+        this.dispatchEvent(new CustomEvent(CustomEventNames.programmatic.play));
       }
     });
 
@@ -110,9 +110,9 @@ export class MediaElementWrapperImpl implements MediaElementWrapper {
     // Listen for pause events and dispatch appropriate custom events
     this._element.addEventListener("pause", () => {
       if (this.isUserInitiated) {
-        this._element.dispatchEvent(CustomEvents.user.pause);
+        this.dispatchEvent(new CustomEvent(CustomEventNames.user.pause));
       } else {
-        this._element.dispatchEvent(CustomEvents.programmatic.pause);
+        this.dispatchEvent(new CustomEvent(CustomEventNames.programmatic.pause));
       }
       this.isUserInitiated = true;
     });
