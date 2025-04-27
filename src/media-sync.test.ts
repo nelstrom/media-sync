@@ -54,7 +54,7 @@ vi.mock("./media-element-wrapper", () => {
         disconnectFromAudioContext: vi.fn(),
         
         // EventTarget methods
-        addEventListener: vi.fn().mockImplementation((eventName, handler) => {
+        addEventListener: vi.fn().mockImplementation((eventName: string, handler: EventListener) => {
           // Store handlers for each event type
           if (!mockWrapper._eventHandlers[eventName]) {
             mockWrapper._eventHandlers[eventName] = [];
@@ -62,22 +62,22 @@ vi.mock("./media-element-wrapper", () => {
           mockWrapper._eventHandlers[eventName].push(handler);
         }),
         
-        removeEventListener: vi.fn().mockImplementation((eventName, handler) => {
+        removeEventListener: vi.fn().mockImplementation((eventName: string, handler: EventListener) => {
           if (mockWrapper._eventHandlers[eventName]) {
             mockWrapper._eventHandlers[eventName] = mockWrapper._eventHandlers[eventName]
-              .filter(h => h !== handler);
+              .filter((h: EventListener) => h !== handler);
           }
         }),
         
-        dispatchEvent: vi.fn().mockImplementation((event) => {
+        dispatchEvent: vi.fn().mockImplementation((event: Event) => {
           // Call all handlers for this event type
           const handlers = mockWrapper._eventHandlers[event.type] || [];
-          handlers.forEach(handler => handler(event));
+          handlers.forEach((handler: EventListener) => handler(event));
           return true;
         }),
         
         // Internal storage for event handlers
-        _eventHandlers: {},
+        _eventHandlers: {} as Record<string, EventListener[]>,
                 
         // For compatibility with otherTracks method that uses internal accessor
         get element() {
@@ -100,6 +100,16 @@ vi.mock("./media-element-wrapper", () => {
         configurable: true,
         get: function() { 
           return element.duration || 100; 
+        }
+      });
+      
+      Object.defineProperty(mockWrapper, 'playbackRate', {
+        configurable: true,
+        get: function() { 
+          return element.playbackRate || 1.0; 
+        },
+        set: function(rate) { 
+          element.playbackRate = rate; 
         }
       });
       
@@ -143,6 +153,18 @@ describe("MediaSync", () => {
         },
         set: function (value) {
           this._duration = value;
+        },
+      },
+      playbackRate: {
+        get: function () {
+          return this._playbackRate || 1.0;
+        },
+        set: function (value) {
+          this._playbackRate = value;
+          // Dispatch ratechange event
+          if (this.dispatchEvent) {
+            this.dispatchEvent(new Event('ratechange'));
+          }
         },
       },
     });
@@ -284,6 +306,45 @@ describe("MediaSync", () => {
       // Restore real timers
       vi.useRealTimers();
     });
+    
+    it("should sync playback rate when user triggers ratechange on one element", () => {
+      // Create element with two videos
+      mediaSyncElement = document.createElement("media-sync") as MediaSync;
+      const video1 = document.createElement("video");
+      const video2 = document.createElement("video");
+      
+      mediaSyncElement.appendChild(video1);
+      mediaSyncElement.appendChild(video2);
+      document.body.appendChild(mediaSyncElement);
+      
+      // Initialize and setup test
+      mediaSyncElement.initialize();
+      
+      // Access wrappers
+      const wrapper1 = wrapperMap.get(video1);
+      const wrapper2 = wrapperMap.get(video2);
+      
+      // Create a spy on the wrapper's playbackRate setter
+      const setPlaybackRateSpy = vi.spyOn(wrapper2, "playbackRate", "set");
+      
+      // Reset mock counters before testing
+      vi.clearAllMocks();
+      
+      // Set video1 to a new playback rate and trigger the event manually
+      // (since we need to construct a CustomEvent with detail payload)
+      const newRate = 1.75;
+      wrapper1.dispatchEvent(
+        new CustomEvent(CustomEventNames.user.ratechange, { 
+          detail: { playbackRate: newRate } 
+        })
+      );
+      
+      // Verify that video2's playbackRate setter was called with the correct value
+      expect(setPlaybackRateSpy).toHaveBeenCalledWith(newRate);
+      
+      // Second video should have the updated playback rate
+      expect(wrapper2.playbackRate).toBe(newRate);
+    });
   });
 
   describe("programmatic actions on media elements", () => {
@@ -394,6 +455,44 @@ describe("MediaSync", () => {
       
       // Video2 should be synced to the same time
       expect(video2.currentTime).toBe(45);
+    });
+    
+    it("should sync playback rate when programmatic ratechange is triggered on one element", () => {
+      // Create element with two videos
+      mediaSyncElement = document.createElement("media-sync") as MediaSync;
+      const video1 = document.createElement("video");
+      const video2 = document.createElement("video");
+      
+      mediaSyncElement.appendChild(video1);
+      mediaSyncElement.appendChild(video2);
+      document.body.appendChild(mediaSyncElement);
+      
+      // Initialize and setup test
+      mediaSyncElement.initialize();
+      
+      // Access wrappers
+      const wrapper1 = wrapperMap.get(video1);
+      const wrapper2 = wrapperMap.get(video2);
+      
+      // Create a spy on the wrapper's playbackRate setter
+      const setPlaybackRateSpy = vi.spyOn(wrapper2, "playbackRate", "set");
+      
+      // Reset mock counters before testing
+      vi.clearAllMocks();
+      
+      // Set video1 to a new playback rate and trigger the event manually
+      const newRate = 2.0;
+      wrapper1.dispatchEvent(
+        new CustomEvent(CustomEventNames.programmatic.ratechange, { 
+          detail: { playbackRate: newRate } 
+        })
+      );
+      
+      // Verify wrapper2's playbackRate setter was called with the correct value
+      expect(setPlaybackRateSpy).toHaveBeenCalledWith(newRate);
+      
+      // Video2 should have the updated playback rate
+      expect(wrapper2.playbackRate).toBe(newRate);
     });
   });
 
@@ -550,6 +649,81 @@ describe("MediaSync", () => {
       expect(video1.currentTime).toBe(50);
       expect(video2.currentTime).toBe(50);
       expect(video3.currentTime).toBe(50);
+    });
+    
+    it("should get the playbackRate from the main media element", () => {
+      // Create element with three videos
+      mediaSyncElement = document.createElement("media-sync") as MediaSync;
+      const video1 = document.createElement("video");
+      const video2 = document.createElement("video");
+      const video3 = document.createElement("video");
+      
+      mediaSyncElement.appendChild(video1);
+      mediaSyncElement.appendChild(video2);
+      mediaSyncElement.appendChild(video3);
+      document.body.appendChild(mediaSyncElement);
+      
+      // Initialize and setup test
+      mediaSyncElement.initialize();
+      
+      // Set different playback rates for each video
+      video1.playbackRate = 1.5; // First video is the main one by default
+      video2.playbackRate = 2.0;
+      video3.playbackRate = 0.5;
+      
+      // Main element (video1) is used for playbackRate
+      expect(mediaSyncElement.playbackRate).toBe(1.5);
+      
+      // Set a different rate on the main element and verify it's reflected
+      video1.playbackRate = 2.5;
+      expect(mediaSyncElement.playbackRate).toBe(2.5);
+    });
+    
+    it("should synchronize all media elements when playbackRate is set", () => {
+      // Create element with three videos
+      mediaSyncElement = document.createElement("media-sync") as MediaSync;
+      const video1 = document.createElement("video");
+      const video2 = document.createElement("video");
+      const video3 = document.createElement("video");
+      
+      mediaSyncElement.appendChild(video1);
+      mediaSyncElement.appendChild(video2);
+      mediaSyncElement.appendChild(video3);
+      document.body.appendChild(mediaSyncElement);
+      
+      // Initialize and setup test
+      mediaSyncElement.initialize();
+      
+      // Access wrapper map
+      const wrapper1 = wrapperMap.get(video1);
+      const wrapper2 = wrapperMap.get(video2);
+      const wrapper3 = wrapperMap.get(video3);
+      
+      // Create spies on the playbackRate setters
+      const setPlaybackRateSpy1 = vi.spyOn(wrapper1, "playbackRate", "set");
+      const setPlaybackRateSpy2 = vi.spyOn(wrapper2, "playbackRate", "set");
+      const setPlaybackRateSpy3 = vi.spyOn(wrapper3, "playbackRate", "set");
+      
+      // Set initial rates
+      video1.playbackRate = 1.0;
+      video2.playbackRate = 1.0;
+      video3.playbackRate = 1.0;
+      
+      // Clear mocks before testing
+      vi.clearAllMocks();
+      
+      // Set playbackRate to sync all videos to 1.5x speed
+      mediaSyncElement.playbackRate = 1.5;
+      
+      // Verify setters were called with the correct value
+      expect(setPlaybackRateSpy1).toHaveBeenCalledWith(1.5);
+      expect(setPlaybackRateSpy2).toHaveBeenCalledWith(1.5);
+      expect(setPlaybackRateSpy3).toHaveBeenCalledWith(1.5);
+      
+      // All videos should be at the target rate
+      expect(video1.playbackRate).toBe(1.5);
+      expect(video2.playbackRate).toBe(1.5);
+      expect(video3.playbackRate).toBe(1.5);
     });
   });
   
@@ -720,13 +894,17 @@ describe("MediaSync", () => {
       const pauseFn2 = vi.spyOn(wrapper2, "pause");
       const setCurrentTimeSpy1 = vi.spyOn(wrapper1, "currentTime", "set");
       const setCurrentTimeSpy2 = vi.spyOn(wrapper2, "currentTime", "set");
+      const setPlaybackRateSpy1 = vi.spyOn(wrapper1, "playbackRate", "set");
+      const setPlaybackRateSpy2 = vi.spyOn(wrapper2, "playbackRate", "set");
       
       // Reset mocks before testing
       vi.clearAllMocks();
       
-      // Set initial times
+      // Set initial times and rates
       video1.currentTime = 10;
       video2.currentTime = 20;
+      video1.playbackRate = 1.0;
+      video2.playbackRate = 1.0;
       
       // Test play() method - should be a no-op
       mediaSyncElement.play();
@@ -749,9 +927,18 @@ describe("MediaSync", () => {
       expect(setCurrentTimeSpy1).not.toHaveBeenCalled();
       expect(setCurrentTimeSpy2).not.toHaveBeenCalled();
       
-      // Times should remain unchanged
+      // Test playbackRate setter - should be a no-op
+      mediaSyncElement.playbackRate = 2.0;
+      
+      // Neither wrapper's playbackRate setter should be called
+      expect(setPlaybackRateSpy1).not.toHaveBeenCalled();
+      expect(setPlaybackRateSpy2).not.toHaveBeenCalled();
+      
+      // Times and rates should remain unchanged
       expect(video1.currentTime).toBe(10);
       expect(video2.currentTime).toBe(20);
+      expect(video1.playbackRate).toBe(1.0);
+      expect(video2.playbackRate).toBe(1.0);
       
       // Now enable the component and verify methods work
       mediaSyncElement.disabled = false;

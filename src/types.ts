@@ -39,6 +39,11 @@ export interface MediaElementWrapper {
   duration: number;
   
   /**
+   * The playback rate
+   */
+  playbackRate: number;
+  
+  /**
    * Check if the media has ended
    */
   isEnded(): boolean;

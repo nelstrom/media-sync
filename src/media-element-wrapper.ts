@@ -65,6 +65,30 @@ export class MediaElementWrapperImpl extends EventTarget {
       Logger.error("Failed to override currentTime property");
     }
 
+    // Override playbackRate property to track if it was programmatically triggered
+    const originalPlaybackRateGetter = Object.getOwnPropertyDescriptor(
+      HTMLMediaElement.prototype,
+      "playbackRate"
+    )?.get;
+    const originalPlaybackRateSetter = Object.getOwnPropertyDescriptor(
+      HTMLMediaElement.prototype,
+      "playbackRate"
+    )?.set;
+
+    if (originalPlaybackRateGetter && originalPlaybackRateSetter) {
+      Object.defineProperty(this._element, "playbackRate", {
+        get: function () {
+          return originalPlaybackRateGetter.call(this);
+        },
+        set: function (value) {
+          self.isUserInitiated = false;
+          originalPlaybackRateSetter.call(this, value);
+        },
+      });
+    } else {
+      Logger.error("Failed to override playbackRate property");
+    }
+
     this._element.addEventListener("seeking", () => {
       if (this.isUserInitiated) {
         this.dispatchEvent(new CustomEvent(CustomEventNames.user.seeking));
@@ -78,6 +102,16 @@ export class MediaElementWrapperImpl extends EventTarget {
         this.dispatchEvent(new CustomEvent(CustomEventNames.user.seeked));
       } else {
         this.dispatchEvent(new CustomEvent(CustomEventNames.programmatic.seeked));
+      }
+      this.isUserInitiated = true;
+    });
+
+    this._element.addEventListener("ratechange", (e) => {
+      const playbackRate = (e.target as HTMLMediaElement).playbackRate;
+      if (this.isUserInitiated) {
+        this.dispatchEvent(new CustomEvent(CustomEventNames.user.ratechange, { detail: { playbackRate } }));
+      } else {
+        this.dispatchEvent(new CustomEvent(CustomEventNames.programmatic.ratechange, { detail: { playbackRate } }));
       }
       this.isUserInitiated = true;
     });
@@ -242,5 +276,22 @@ export class MediaElementWrapperImpl extends EventTarget {
     } catch (error) {
       Logger.error(`Error disconnecting ${this.id} from Web Audio API:`, error);
     }
+  }
+
+  /**
+   * Get the current playback rate
+   */
+  public get playbackRate(): number {
+    return this._element?.playbackRate || 1.0;
+  }
+
+  /**
+   * Set the playback rate
+   */
+  public set playbackRate(rate: number) {
+    if (!this._element) return;
+    
+    Logger.debug(`Setting ${this.id} playbackRate to: ${rate}`);
+    this._element.playbackRate = rate;
   }
 }
