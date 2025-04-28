@@ -1,7 +1,8 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { MediaElementWrapperImpl } from "./media-element-wrapper";
+import { CustomEventNames } from "./constants";
 
-// Mock the Logger utility
+// Mock the Logger utility - must be before imports due to hoisting
 vi.mock("./utils", () => {
   return {
     Logger: {
@@ -142,6 +143,347 @@ describe("MediaElementWrapper", () => {
       wrapper.playbackRate = 1.5;
       // Check the value was set on the media element
       expect(mediaElement.playbackRate).toBe(1.5);
+    });
+  });
+  
+  describe("element getter", () => {
+    it("should return the underlying HTMLMediaElement", () => {
+      expect(wrapper.element).toBe(mediaElement);
+    });
+  });
+  
+  describe("isPlaying and isPaused methods", () => {
+    it("should return correct playing state based on media element", () => {
+      // Default in our test setup is paused=false (playing)
+      expect(wrapper.isPlaying()).toBe(true);
+      expect(wrapper.isPaused()).toBe(false);
+      
+      // Now set to paused
+      Object.defineProperty(mediaElement, 'paused', {
+        configurable: true,
+        value: true,
+        writable: true
+      });
+      
+      expect(wrapper.isPlaying()).toBe(false);
+      expect(wrapper.isPaused()).toBe(true);
+    });
+  });
+  
+  describe("isEnded method", () => {
+    it("should return true when currentTime is close to duration", () => {
+      // Set currentTime to almost at the end
+      mediaElement.currentTime = 99.95;
+      expect(wrapper.isEnded()).toBe(true);
+      
+      // Set to exactly at the end
+      mediaElement.currentTime = 100;
+      expect(wrapper.isEnded()).toBe(true);
+      
+      // Set to well before the end
+      mediaElement.currentTime = 50;
+      expect(wrapper.isEnded()).toBe(false);
+    });
+  });
+  
+  describe("currentTime setter with edge cases", () => {
+    it("should handle setting currentTime past duration", () => {
+      wrapper.currentTime = 150;
+      // Should set to just before the end to prevent "ended" event
+      expect(mediaElement.currentTime).toBe(99.95);
+    });
+    
+    it("should set currentTime normally when within duration", () => {
+      wrapper.currentTime = 75;
+      expect(mediaElement.currentTime).toBe(75);
+    });
+  });
+  
+  describe("custom event dispatching", () => {
+    let dispatchEventSpy: any;
+    
+    beforeEach(() => {
+      dispatchEventSpy = vi.spyOn(wrapper, 'dispatchEvent');
+    });
+    
+    it("should dispatch user seeking event", () => {
+      // Get the seeking listener and call it
+      const seekingCall = addEventListenerMock.mock.calls.find(
+        call => call[0] === "seeking"
+      );
+      expect(seekingCall).toBeDefined();
+      const seekingHandler = seekingCall![1];
+      
+      // Call with isUserInitiated = true (default state)
+      seekingHandler();
+      
+      expect(dispatchEventSpy).toHaveBeenCalledWith(
+        expect.objectContaining({
+          type: CustomEventNames.user.seeking
+        })
+      );
+    });
+    
+    it("should dispatch programmatic seeking event", () => {
+      // Simulate programmatic seek by setting isUserInitiated to false
+      wrapper.currentTime = 50;
+      
+      // Get the seeking listener and call it
+      const seekingCall = addEventListenerMock.mock.calls.find(
+        call => call[0] === "seeking"
+      );
+      expect(seekingCall).toBeDefined();
+      const seekingHandler = seekingCall![1];
+      
+      // Call handler (isUserInitiated should now be false)
+      seekingHandler();
+      
+      expect(dispatchEventSpy).toHaveBeenCalledWith(
+        expect.objectContaining({
+          type: CustomEventNames.programmatic.seeking
+        })
+      );
+    });
+    
+    it("should dispatch user play event", () => {
+      // Get the play listener and call it
+      const playCall = addEventListenerMock.mock.calls.find(
+        call => call[0] === "play"
+      );
+      expect(playCall).toBeDefined();
+      const playHandler = playCall![1];
+      
+      // Call with isUserInitiated = true (default state)
+      playHandler();
+      
+      expect(dispatchEventSpy).toHaveBeenCalledWith(
+        expect.objectContaining({
+          type: CustomEventNames.user.play
+        })
+      );
+    });
+    
+    it("should dispatch programmatic play event", () => {
+      // Simulate programmatic play
+      // This would normally be set by wrapper.play() but we'll fake it
+      const playCall = addEventListenerMock.mock.calls.find(
+        call => call[0] === "play"
+      );
+      expect(playCall).toBeDefined();
+      const playHandler = playCall![1];
+      
+      // Set isUserInitiated to false manually for the test
+      // We're accessing a private property, which is generally not good
+      // practice but necessary for testing in this case
+      (wrapper as any).isUserInitiated = false;
+      
+      // Call handler
+      playHandler();
+      
+      expect(dispatchEventSpy).toHaveBeenCalledWith(
+        expect.objectContaining({
+          type: CustomEventNames.programmatic.play
+        })
+      );
+    });
+    
+    it("should dispatch user pause event", () => {
+      // Get the pause listener and call it
+      const pauseCall = addEventListenerMock.mock.calls.find(
+        call => call[0] === "pause"
+      );
+      expect(pauseCall).toBeDefined();
+      const pauseHandler = pauseCall![1];
+      
+      // Call with isUserInitiated = true (default state)
+      pauseHandler();
+      
+      expect(dispatchEventSpy).toHaveBeenCalledWith(
+        expect.objectContaining({
+          type: CustomEventNames.user.pause
+        })
+      );
+    });
+    
+    it("should dispatch programmatic pause event", () => {
+      // Simulate programmatic pause
+      const pauseCall = addEventListenerMock.mock.calls.find(
+        call => call[0] === "pause"
+      );
+      expect(pauseCall).toBeDefined();
+      const pauseHandler = pauseCall![1];
+      
+      // Set isUserInitiated to false manually for the test
+      (wrapper as any).isUserInitiated = false;
+      
+      // Call handler
+      pauseHandler();
+      
+      expect(dispatchEventSpy).toHaveBeenCalledWith(
+        expect.objectContaining({
+          type: CustomEventNames.programmatic.pause
+        })
+      );
+    });
+    
+    it("should dispatch user ratechange event", () => {
+      // Create a mock event with a target having playbackRate
+      const mockEvent = {
+        target: {
+          playbackRate: 1.5
+        }
+      };
+      
+      // Get the ratechange listener and call it
+      const ratechangeCall = addEventListenerMock.mock.calls.find(
+        call => call[0] === "ratechange"
+      );
+      expect(ratechangeCall).toBeDefined();
+      const ratechangeHandler = ratechangeCall![1];
+      
+      // Call with isUserInitiated = true (default state)
+      ratechangeHandler(mockEvent);
+      
+      expect(dispatchEventSpy).toHaveBeenCalledWith(
+        expect.objectContaining({
+          type: CustomEventNames.user.ratechange,
+          detail: { playbackRate: 1.5 }
+        })
+      );
+    });
+    
+    it("should dispatch programmatic ratechange event", () => {
+      // Create a mock event with a target having playbackRate
+      const mockEvent = {
+        target: {
+          playbackRate: 2.0
+        }
+      };
+      
+      // Get the ratechange listener and call it
+      const ratechangeCall = addEventListenerMock.mock.calls.find(
+        call => call[0] === "ratechange"
+      );
+      expect(ratechangeCall).toBeDefined();
+      const ratechangeHandler = ratechangeCall![1];
+      
+      // Set isUserInitiated to false manually for the test
+      (wrapper as any).isUserInitiated = false;
+      
+      // Call handler
+      ratechangeHandler(mockEvent);
+      
+      expect(dispatchEventSpy).toHaveBeenCalledWith(
+        expect.objectContaining({
+          type: CustomEventNames.programmatic.ratechange,
+          detail: { playbackRate: 2.0 }
+        })
+      );
+    });
+    
+    it("should dispatch user seeked event", () => {
+      // Get the seeked listener and call it
+      const seekedCall = addEventListenerMock.mock.calls.find(
+        call => call[0] === "seeked"
+      );
+      expect(seekedCall).toBeDefined();
+      const seekedHandler = seekedCall![1];
+      
+      // Call with isUserInitiated = true (default state)
+      seekedHandler();
+      
+      expect(dispatchEventSpy).toHaveBeenCalledWith(
+        expect.objectContaining({
+          type: CustomEventNames.user.seeked
+        })
+      );
+      
+      // Should reset isUserInitiated to true after event
+      expect((wrapper as any).isUserInitiated).toBe(true);
+    });
+  });
+  
+  describe("Web Audio API methods", () => {
+    let audioContext: AudioContext;
+    let createMediaElementSourceMock: ReturnType<typeof vi.fn>;
+    let createGainMock: ReturnType<typeof vi.fn>;
+    let connectMock: ReturnType<typeof vi.fn>;
+    let disconnectMock: ReturnType<typeof vi.fn>;
+    
+    beforeEach(() => {
+      // Mock an AudioContext and its methods
+      createMediaElementSourceMock = vi.fn().mockReturnValue({
+        connect: connectMock = vi.fn(),
+        disconnect: disconnectMock = vi.fn()
+      });
+      
+      createGainMock = vi.fn().mockReturnValue({
+        connect: connectMock,
+        disconnect: disconnectMock
+      });
+      
+      audioContext = {
+        createMediaElementSource: createMediaElementSourceMock,
+        createGain: createGainMock,
+        destination: {}
+      } as unknown as AudioContext;
+    });
+    
+    it("should connect to the audio context", () => {
+      wrapper.connectToAudioContext(audioContext);
+      
+      expect(createMediaElementSourceMock).toHaveBeenCalledWith(mediaElement);
+      expect(createGainMock).toHaveBeenCalled();
+      expect(connectMock).toHaveBeenCalledTimes(2);
+      expect(wrapper.audioSource).toBeDefined();
+    });
+    
+    it("should not reconnect if already connected", () => {
+      // Connect once
+      wrapper.connectToAudioContext(audioContext);
+      
+      // Reset mocks
+      createMediaElementSourceMock.mockClear();
+      createGainMock.mockClear();
+      connectMock.mockClear();
+      
+      // Try to connect again
+      wrapper.connectToAudioContext(audioContext);
+      
+      // Verify no new connections were made
+      expect(createMediaElementSourceMock).not.toHaveBeenCalled();
+      expect(createGainMock).not.toHaveBeenCalled();
+      expect(connectMock).not.toHaveBeenCalled();
+    });
+    
+    it("should handle errors during connection", () => {
+      // Make createMediaElementSource throw an error
+      createMediaElementSourceMock.mockImplementation(() => {
+        throw new Error("Connection error");
+      });
+      
+      // Mock disconnectFromAudioContext
+      const disconnectSpy = vi.spyOn(wrapper, 'disconnectFromAudioContext');
+      
+      // This should throw internally but not externally
+      wrapper.connectToAudioContext(audioContext);
+      
+      // Should call disconnect on error
+      expect(disconnectSpy).toHaveBeenCalled();
+      
+      // We should not have an audioSource after an error
+      expect(wrapper.audioSource).toBeUndefined();
+    });
+    
+    it("should disconnect from audio context", () => {
+      // First connect
+      wrapper.connectToAudioContext(audioContext);
+      
+      // Then disconnect
+      wrapper.disconnectFromAudioContext();
+      
+      expect(disconnectMock).toHaveBeenCalledTimes(2);
+      expect(wrapper.audioSource).toBeUndefined();
     });
   });
 });
