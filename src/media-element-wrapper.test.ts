@@ -29,7 +29,7 @@ describe("MediaElementWrapper", () => {
     
     // Override the methods on the specific instance
     // These need to be actual spies for expect().toHaveBeenCalled() to work
-    mediaElement.play = playMock;
+    mediaElement.play = playMock as unknown as () => Promise<void>;
     mediaElement.pause = pauseMock;
     mediaElement.addEventListener = addEventListenerMock;
     
@@ -95,9 +95,7 @@ describe("MediaElementWrapper", () => {
   
   describe("play method", () => {
     it("should call play on the underlying media element", async () => {
-      // Because of how the wrapper overrides HTMLMediaElement.prototype.play, 
-      // we need to spy on wrapper.play instead and just verify it's callable
-      const playSpy = vi.spyOn(wrapper, 'play');
+      const playSpy = vi.spyOn(mediaElement, 'play');
       
       await wrapper.play();
       
@@ -107,8 +105,7 @@ describe("MediaElementWrapper", () => {
   
   describe("pause method", () => {
     it("should call pause on the underlying media element", () => {
-      // Similar to play, need to use a spy on the wrapper method
-      const pauseSpy = vi.spyOn(wrapper, 'pause');
+      const pauseSpy = vi.spyOn(mediaElement, 'pause');
       
       wrapper.pause();
       

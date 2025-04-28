@@ -1,8 +1,6 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { MediaSync } from "./media-sync";
 import { MediaElementWrapperImpl } from "./media-element-wrapper";
-import { MediaElementWrapper } from "./types";
-import { CustomEventNames } from "./constants";
 
 // Register the custom element if not already registered
 if (!customElements.get("media-sync")) {
@@ -12,17 +10,17 @@ if (!customElements.get("media-sync")) {
 // Mock the MediaElementWrapper class
 vi.mock("./media-element-wrapper", () => {
   return {
-    MediaElementWrapperImpl: vi.fn().mockImplementation((element, options = {}) => {
+    MediaElementWrapperImpl: vi.fn().mockImplementation((_element, options = {}) => {
       return {
         id: 'mock-wrapper-id',
         isMain: options.isMain || false,
         play: vi.fn().mockResolvedValue(undefined),
         pause: vi.fn(),
         get currentTime() { return 0; },
-        set currentTime(time: number) {},
+        set currentTime(_: number) {},
         get duration() { return 100; },
         get playbackRate() { return 1.0; },
-        set playbackRate(rate: number) {},
+        set playbackRate(_: number) {},
         isEnded: vi.fn().mockReturnValue(false),
         isPlaying: vi.fn().mockReturnValue(true),
         isPaused: vi.fn().mockReturnValue(false),
@@ -67,7 +65,6 @@ beforeEach(() => {
 describe("MediaSync", () => {
   let mediaSyncElement: MediaSync;
   let mockMediaElements: HTMLMediaElement[];
-  let mockWrappers: MediaElementWrapper[];
   
   beforeEach(() => {
     // Create MediaSync element
