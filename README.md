@@ -38,14 +38,15 @@ The `<media-sync>` element works on the assumption that all provided tracks have
 - [X] give media-sync element a similar interface to media elements (play, pause, currentTime)
 - [X] ~~make impossible states impossible (wrt to syncing)~~
 - [X] periodically check deltas and re-sync to correct any drift
+- [X] consider calling `dispatchEvent()` from the Wrapper, not the element (and attaching listeners to the wrapper, not the element)
+- [X] add a disabled property/attribute
+- [X] give media-element-wrapper a similar interface to media elements (play, pause, currentTime)
+- [ ] refactor tests: media-sync test should test integration between media-sync and media-element-wrapper (without interacting with the MediaElements themselves). media-element-wrapper test should test integration between the wrapper and the media-element itself.
+- [ ] replace `isSyncing{Play,Pause,Sync}` in media-sync with equivalent in media-element-wrapper. When syncing one media-element, media-sync would set other elements into a state where they don't emit events, until the sync is complete
 - [ ] add a boolean loop attribute/property to `media-sync` (mirror this against the main media element, and prevent non-main media elements from having loop enabled)
 - [ ] add a readyState property (getter only) for media-sync. It should do `Math.min(mediaElements.map(e => e.readyState))`
 - [ ] handle loading and readiness states
-- [X] consider calling `dispatchEvent()` from the Wrapper, not the element (and attaching listeners to the wrapper, not the element)
-- [X] add a disabled property/attribute
-- [ ] use a data- attribute to mark the main track
 - [ ] use a data- attribute to enable/disable debug logging
-- [X] give media-element-wrapper a similar interface to media elements (play, pause, currentTime)
 - [ ] intentionally delete code in ways that don't cause the tests to fail. Ask GenAI to add tests to catch these blind-spots
 
 ### sync-video-player inspired approach
