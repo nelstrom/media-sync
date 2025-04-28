@@ -5,12 +5,16 @@ import { MediaSync } from "./media-sync";
 // Need to define these mocks before any imports
 const wrapperMap = new Map();
 
-// Mock the debounce utility to execute immediately in tests
+// Mock the utils module to make debounce work synchronously in tests
 vi.mock("./utils", async (importOriginal) => {
   const originalModule = await importOriginal<typeof import("./utils")>();
   return {
     ...originalModule,
-    debounce: vi.fn().mockImplementation((fn) => fn)
+    debounce: vi.fn().mockImplementation((fn) => fn),
+    Logger: {
+      debug: vi.fn(),
+      error: vi.fn()
+    }
   };
 });
 
