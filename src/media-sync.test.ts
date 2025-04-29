@@ -20,8 +20,15 @@ vi.mock("./utils", async (importOriginal) => {
   };
 });
 
+// Enable fake timers for setTimeout
+vi.useFakeTimers();
+
 describe("MediaSync", () => {
   let mediaSyncElement: MediaSync;
+  let video1: HTMLVideoElement;
+  let video2: HTMLVideoElement;
+  let wrapper1: any;
+  let wrapper2: any;
   
   beforeEach(() => {
     // Create MediaSync element
@@ -39,6 +46,16 @@ describe("MediaSync", () => {
       writable: true,
       value: vi.fn()
     });
+    
+    // Create two video elements
+    video1 = document.createElement("video");
+    video2 = document.createElement("video");
+    
+    // Initialize the media-sync element with the videos
+    [wrapper1, wrapper2] = mediaSyncElement.initialize([video1, video2]);
+    
+    // Reset all mocks before each test
+    vi.clearAllMocks();
   });
   
   afterEach(() => {
@@ -46,18 +63,8 @@ describe("MediaSync", () => {
   });
 
   it("should sync play to other elements when one element triggers play", () => {
-    // Create two video elements
-    const video1 = document.createElement("video");
-    const video2 = document.createElement("video");
-    
-    // Initialize the media-sync element with the videos
-    const [wrapper1, wrapper2] = mediaSyncElement.initialize([video1, video2]);
-    
     const wrapper1PlaySpy = vi.spyOn(wrapper1, 'play');
     const wrapper2PlaySpy = vi.spyOn(wrapper2, 'play');
-    
-    // Reset all mocks before the actual test
-    vi.clearAllMocks();
     
     // Simulate a user play event from wrapper1
     wrapper1.dispatchEvent(new CustomEvent(CustomEventNames.user.play));
@@ -67,18 +74,8 @@ describe("MediaSync", () => {
   });
   
   it("should sync pause to other elements when one element triggers pause", () => {
-    // Create two video elements
-    const video1 = document.createElement("video");
-    const video2 = document.createElement("video");
-    
-    // Initialize the media-sync element with the videos
-    const [wrapper1, wrapper2] = mediaSyncElement.initialize([video1, video2]);
-    
     const wrapper1PauseSpy = vi.spyOn(wrapper1, 'pause');
     const wrapper2PauseSpy = vi.spyOn(wrapper2, 'pause');
-    
-    // Reset all mocks before the actual test
-    vi.clearAllMocks();
     
     // Simulate a user pause event from wrapper1
     wrapper1.dispatchEvent(new CustomEvent(CustomEventNames.user.pause));
@@ -88,16 +85,6 @@ describe("MediaSync", () => {
   });
   
   it("should sync playback rate to other elements when one element changes rate", () => {
-    // Create two video elements
-    const video1 = document.createElement("video");
-    const video2 = document.createElement("video");
-    
-    // Initialize the media-sync element with the videos
-    const [wrapper1, wrapper2] = mediaSyncElement.initialize([video1, video2]);
-    
-    // Reset all mocks before the actual test
-    vi.clearAllMocks();
-    
     const wrapper1RateSetter = vi.fn();
     Object.defineProperty(wrapper1, 'playbackRate', {
       set: wrapper1RateSetter
@@ -115,5 +102,30 @@ describe("MediaSync", () => {
     
     expect(wrapper1RateSetter).not.toHaveBeenCalledWith(1.5);
     expect(wrapper2RateSetter).toHaveBeenCalledWith(1.5);
+  });
+  
+  it("should sync seeking to other elements when one element seeks", () => {
+    // Spy on wrapper's currentTime setter
+    const wrapper1TimeSetter = vi.fn();
+    Object.defineProperty(wrapper1, 'currentTime', {
+      set: wrapper1TimeSetter
+    });
+
+    const wrapper2TimeSetter = vi.fn();
+    Object.defineProperty(wrapper2, 'currentTime', {
+      set: wrapper2TimeSetter
+    });
+    
+    // Simulate a user seeking event from wrapper1 with currentTime in detail
+    wrapper1.dispatchEvent(new CustomEvent(CustomEventNames.user.seeking, {
+      detail: { currentTime: 15.5 }
+    }));
+    
+    // Run all timers to handle the debounced seeking
+    vi.runAllTimers();
+    
+    // Expect wrapper2's currentTime to be set to the time in the event detail
+    expect(wrapper1TimeSetter).not.toHaveBeenCalled();
+    expect(wrapper2TimeSetter).toHaveBeenCalledWith(15.5);
   });
 });

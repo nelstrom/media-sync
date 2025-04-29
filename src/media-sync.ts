@@ -406,7 +406,7 @@ export class MediaSync extends HTMLElement {
       });
 
       // Handle user-initiated seeking events with debouncing
-      const handleUserSeeking = debounce(() => {
+      const handleUserSeeking = debounce((e?: CustomEvent) => {
         Logger.debug(`User seeking event from element ${index}`);
         
         // Skip synchronization if disabled
@@ -415,8 +415,11 @@ export class MediaSync extends HTMLElement {
           return;
         }
         
+        // Get time from event detail if available, otherwise use element's currentTime
+        const seekTime = e?.detail?.currentTime ?? element.currentTime;
+        
         // Store the time for reference
-        this.lastSeekTime = element.currentTime;
+        this.lastSeekTime = seekTime;
         
         // Schedule the actual sync with a small delay to capture the final position
         setTimeout(() => {
@@ -429,7 +432,7 @@ export class MediaSync extends HTMLElement {
       }, SEEK_DEBOUNCE_DELAY);
       
       // Handle programmatic seeking events
-      wrapper.addEventListener(CustomEventNames.programmatic.seeking, () => {
+      wrapper.addEventListener(CustomEventNames.programmatic.seeking, (e) => {
         Logger.debug(`Programmatic seeking event from element ${index}`);
         
         // Skip synchronization if disabled
@@ -438,14 +441,17 @@ export class MediaSync extends HTMLElement {
           return;
         }
         
+        // Get time from event detail if available, otherwise use element's currentTime
+        const seekTime = (e as CustomEvent)?.detail?.currentTime ?? element.currentTime;
+        
         // Get all tracks except the source and seek them
         const targetTracks = this.otherTracks(wrapper);
-        this.seekTracks(targetTracks, element.currentTime);
+        this.seekTracks(targetTracks, seekTime);
       });
       
       // Handle user-initiated seeking
-      wrapper.addEventListener(CustomEventNames.user.seeking, () => {
-        handleUserSeeking();
+      wrapper.addEventListener(CustomEventNames.user.seeking, (e) => {
+        handleUserSeeking(e as CustomEvent);
       });
 
       // Log seeked events

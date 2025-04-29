@@ -89,19 +89,21 @@ export class MediaElementWrapperImpl extends EventTarget {
       Logger.error("Failed to override playbackRate property");
     }
 
-    this._element.addEventListener("seeking", () => {
+    this._element.addEventListener("seeking", (e) => {
+      const currentTime = (e.target as HTMLMediaElement).currentTime;
       if (this.isUserInitiated) {
-        this.dispatchEvent(new CustomEvent(CustomEventNames.user.seeking));
+        this.dispatchEvent(new CustomEvent(CustomEventNames.user.seeking, { detail: { currentTime } }));
       } else {
-        this.dispatchEvent(new CustomEvent(CustomEventNames.programmatic.seeking));
+        this.dispatchEvent(new CustomEvent(CustomEventNames.programmatic.seeking, { detail: { currentTime } }));
       }
     });
 
-    this._element.addEventListener("seeked", () => {
+    this._element.addEventListener("seeked", (e) => {
+      const currentTime = (e.target as HTMLMediaElement).currentTime;
       if (this.isUserInitiated) {
-        this.dispatchEvent(new CustomEvent(CustomEventNames.user.seeked));
+        this.dispatchEvent(new CustomEvent(CustomEventNames.user.seeked, { detail: { currentTime } }));
       } else {
-        this.dispatchEvent(new CustomEvent(CustomEventNames.programmatic.seeked));
+        this.dispatchEvent(new CustomEvent(CustomEventNames.programmatic.seeked, { detail: { currentTime } }));
       }
       this.isUserInitiated = true;
     });
