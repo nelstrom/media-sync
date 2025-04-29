@@ -65,4 +65,55 @@ describe("MediaSync", () => {
     expect(wrapper1PlaySpy).not.toHaveBeenCalled();
     expect(wrapper2PlaySpy).toHaveBeenCalled();
   });
+  
+  it("should sync pause to other elements when one element triggers pause", () => {
+    // Create two video elements
+    const video1 = document.createElement("video");
+    const video2 = document.createElement("video");
+    
+    // Initialize the media-sync element with the videos
+    const [wrapper1, wrapper2] = mediaSyncElement.initialize([video1, video2]);
+    
+    const wrapper1PauseSpy = vi.spyOn(wrapper1, 'pause');
+    const wrapper2PauseSpy = vi.spyOn(wrapper2, 'pause');
+    
+    // Reset all mocks before the actual test
+    vi.clearAllMocks();
+    
+    // Simulate a user pause event from wrapper1
+    wrapper1.dispatchEvent(new CustomEvent(CustomEventNames.user.pause));
+    
+    expect(wrapper1PauseSpy).not.toHaveBeenCalled();
+    expect(wrapper2PauseSpy).toHaveBeenCalled();
+  });
+  
+  it("should sync playback rate to other elements when one element changes rate", () => {
+    // Create two video elements
+    const video1 = document.createElement("video");
+    const video2 = document.createElement("video");
+    
+    // Initialize the media-sync element with the videos
+    const [wrapper1, wrapper2] = mediaSyncElement.initialize([video1, video2]);
+    
+    // Reset all mocks before the actual test
+    vi.clearAllMocks();
+    
+    const wrapper1RateSetter = vi.fn();
+    Object.defineProperty(wrapper1, 'playbackRate', {
+      set: wrapper1RateSetter
+    });
+
+    const wrapper2RateSetter = vi.fn();
+    Object.defineProperty(wrapper2, 'playbackRate', {
+      set: wrapper2RateSetter
+    });
+    
+    // Simulate a user ratechange event from wrapper1
+    wrapper1.dispatchEvent(new CustomEvent(CustomEventNames.user.ratechange, {
+      detail: { playbackRate: 1.5 }
+    }));
+    
+    expect(wrapper1RateSetter).not.toHaveBeenCalledWith(1.5);
+    expect(wrapper2RateSetter).toHaveBeenCalledWith(1.5);
+  });
 });
