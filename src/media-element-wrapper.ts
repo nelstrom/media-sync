@@ -90,7 +90,8 @@ export class MediaElementWrapperImpl extends EventTarget {
     }
 
     this._element.addEventListener("seeking", (e) => {
-      const currentTime = (e.target as HTMLMediaElement).currentTime;
+      // Use this._element.currentTime as a fallback if e.target is not available (useful in tests)
+      const currentTime = (e?.target as HTMLMediaElement)?.currentTime ?? this._element.currentTime;
       if (this.isUserInitiated) {
         this.dispatchEvent(new CustomEvent(CustomEventNames.user.seeking, { detail: { currentTime } }));
       } else {
@@ -99,7 +100,8 @@ export class MediaElementWrapperImpl extends EventTarget {
     });
 
     this._element.addEventListener("seeked", (e) => {
-      const currentTime = (e.target as HTMLMediaElement).currentTime;
+      // Use this._element.currentTime as a fallback if e.target is not available (useful in tests)
+      const currentTime = (e?.target as HTMLMediaElement)?.currentTime ?? this._element.currentTime;
       if (this.isUserInitiated) {
         this.dispatchEvent(new CustomEvent(CustomEventNames.user.seeked, { detail: { currentTime } }));
       } else {
@@ -109,7 +111,8 @@ export class MediaElementWrapperImpl extends EventTarget {
     });
 
     this._element.addEventListener("ratechange", (e) => {
-      const playbackRate = (e.target as HTMLMediaElement).playbackRate;
+      // Use this._element.playbackRate as a fallback if e.target is not available (useful in tests)
+      const playbackRate = (e?.target as HTMLMediaElement)?.playbackRate ?? this._element.playbackRate;
       if (this.isUserInitiated) {
         this.dispatchEvent(new CustomEvent(CustomEventNames.user.ratechange, { detail: { playbackRate } }));
       } else {

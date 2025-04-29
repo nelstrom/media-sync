@@ -25,6 +25,13 @@ describe("MediaElementWrapper", () => {
     pauseMock = vi.fn();
     addEventListenerMock = vi.fn();
     
+    // Mock HTMLMediaElement.prototype.play globally to avoid JSDOM warning
+    Object.defineProperty(HTMLMediaElement.prototype, 'play', {
+      configurable: true,
+      writable: true,
+      value: vi.fn().mockResolvedValue(undefined)
+    });
+    
     // Create a media element
     mediaElement = document.createElement("video") as HTMLMediaElement;
     
@@ -219,7 +226,10 @@ describe("MediaElementWrapper", () => {
       
       expect(dispatchEventSpy).toHaveBeenCalledWith(
         expect.objectContaining({
-          type: CustomEventNames.user.seeking
+          type: CustomEventNames.user.seeking,
+          detail: expect.objectContaining({
+            currentTime: expect.any(Number)
+          })
         })
       );
     });
@@ -240,7 +250,10 @@ describe("MediaElementWrapper", () => {
       
       expect(dispatchEventSpy).toHaveBeenCalledWith(
         expect.objectContaining({
-          type: CustomEventNames.programmatic.seeking
+          type: CustomEventNames.programmatic.seeking,
+          detail: expect.objectContaining({
+            currentTime: expect.any(Number)
+          })
         })
       );
     });
@@ -394,7 +407,10 @@ describe("MediaElementWrapper", () => {
       
       expect(dispatchEventSpy).toHaveBeenCalledWith(
         expect.objectContaining({
-          type: CustomEventNames.user.seeked
+          type: CustomEventNames.user.seeked,
+          detail: expect.objectContaining({
+            currentTime: expect.any(Number)
+          })
         })
       );
       
