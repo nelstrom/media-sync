@@ -25,3 +25,9 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 - Modules should either:
   - Export backing class as default export
   - Self-register in custom elements registry
+- `media-sync.test.ts` should never mock the MediaSync class.
+- `media-sync.test.ts` should can spy on methods from MediaElementWrapper class, and occasionally mock them
+- `media-sync.test.ts` should always mock the HTMLMediaElement
+- `media-element-wrapper.test.ts` should never mock the MediaElementWrapper class
+- `media-element-wrapper.test.ts` should always mock the HTMLMediaElement
+- when mocking getters and setters, only mock methods that are actually called
