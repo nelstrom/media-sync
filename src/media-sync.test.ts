@@ -1,11 +1,6 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { MediaSync } from "./media-sync";
+import { MediaSync } from "./register";
 import { CustomEventNames } from "./constants";
-
-// Register the custom element if not already registered
-if (!customElements.get("media-sync")) {
-  customElements.define("media-sync", MediaSync);
-}
 
 // Mock the utils module to make debounce work synchronously in tests
 vi.mock("./utils", async (importOriginal) => {
@@ -64,7 +59,7 @@ describe("MediaSync", () => {
 
   describe("initialization", () => {
     it("custom element uses MediaSync backing class", () => {
-      mediaSyncElement = document.createElement("media-sync") as MediaSync;
+      mediaSyncElement = document.createElement("media-sync");
       expect(mediaSyncElement).toBeInstanceOf(MediaSync);
     });
 

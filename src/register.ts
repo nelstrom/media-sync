@@ -8,5 +8,12 @@ if (!customElements.get('media-sync')) {
   customElements.define('media-sync', MediaSync);
 }
 
+// Add TypeScript namespace declaration for media-sync element
+declare global {
+  interface HTMLElementTagNameMap {
+    'media-sync': MediaSync;
+  }
+}
+
 export { MediaSync };
 export default MediaSync;
