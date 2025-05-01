@@ -420,14 +420,6 @@ export class MediaSync extends HTMLElement {
         this.seekTracks(targetTracks, seekTime);
       });
 
-      // Log seeked events
-      wrapper.addEventListener(CustomEventNames.programmatic.seeked, () => {
-        Logger.debug(`Programmatic seeked event from element ${index}`);
-      });
-      
-      wrapper.addEventListener(CustomEventNames.user.seeked, () => {
-        Logger.debug(`User seeked event from element ${index}`);
-      });
 
       // Handle play events
       wrapper.addEventListener(CustomEventNames.play, () => {

@@ -11,7 +11,6 @@ export class MediaElementWrapperImpl extends EventTarget {
   public isMain: boolean = false;
   public audioSource?: MediaElementAudioSourceNode;
 
-  private isUserInitiated: boolean = true;
   protected audioContext?: AudioContext;
   private gainNode?: GainNode;
   private emitEvents: Record<string, boolean> = {
@@ -47,55 +46,6 @@ export class MediaElementWrapperImpl extends EventTarget {
    * Set up custom event dispatching for the media element
    */
   private setupEventDispatchers(): void {
-    const originalGetter = Object.getOwnPropertyDescriptor(
-      HTMLMediaElement.prototype,
-      "currentTime"
-    )?.get;
-    const originalSetter = Object.getOwnPropertyDescriptor(
-      HTMLMediaElement.prototype,
-      "currentTime"
-    )?.set;
-    // Store reference to 'this' for closure
-    const self = this;
-
-    if (originalGetter && originalSetter) {
-      Object.defineProperty(this._element, "currentTime", {
-        get: function () {
-          return originalGetter.call(this);
-        },
-        set: function (value) {
-          self.isUserInitiated = false;
-          originalSetter.call(this, value);
-        },
-      });
-    } else {
-      Logger.error("Failed to override currentTime property");
-    }
-
-    // Override playbackRate property to track if it was programmatically triggered
-    const originalPlaybackRateGetter = Object.getOwnPropertyDescriptor(
-      HTMLMediaElement.prototype,
-      "playbackRate"
-    )?.get;
-    const originalPlaybackRateSetter = Object.getOwnPropertyDescriptor(
-      HTMLMediaElement.prototype,
-      "playbackRate"
-    )?.set;
-
-    if (originalPlaybackRateGetter && originalPlaybackRateSetter) {
-      Object.defineProperty(this._element, "playbackRate", {
-        get: function () {
-          return originalPlaybackRateGetter.call(this);
-        },
-        set: function (value) {
-          self.isUserInitiated = false;
-          originalPlaybackRateSetter.call(this, value);
-        },
-      });
-    } else {
-      Logger.error("Failed to override playbackRate property");
-    }
-
     // Debounce seeking events to prevent rapid-fire events
     const debouncedSeekingHandler = debounce((currentTime: number) => {
       if (this.emitEvents[CustomEventNames.seeking]) {
@@ -119,27 +69,6 @@ export class MediaElementWrapperImpl extends EventTarget {
       debouncedSeekingHandler(currentTime);
     });
 
-    this._element.addEventListener("seeked", (e) => {
-      // Use this._element.currentTime as a fallback if e.target is not available (useful in tests)
-      const currentTime =
-        (e?.target as HTMLMediaElement)?.currentTime ??
-        this._element.currentTime;
-      if (this.isUserInitiated) {
-        this.dispatchEvent(
-          new CustomEvent(CustomEventNames.user.seeked, {
-            detail: { currentTime },
-          })
-        );
-      } else {
-        this.dispatchEvent(
-          new CustomEvent(CustomEventNames.programmatic.seeked, {
-            detail: { currentTime },
-          })
-        );
-      }
-      this.isUserInitiated = true;
-    });
-
     this._element.addEventListener("ratechange", (e) => {
       // Use this._element.playbackRate as a fallback if e.target is not available (useful in tests)
       const playbackRate =
@@ -156,16 +85,6 @@ export class MediaElementWrapperImpl extends EventTarget {
         Logger.debug(`(Not emitting a ratechange event from ${this.id})`);
       }
     });
-
-    this._element.play = async function () {
-      self.isUserInitiated = false;
-      try {
-        await HTMLMediaElement.prototype.play.call(this);
-        self.isUserInitiated = true;
-      } catch (error) {
-        Logger.error("Error starting video playback:", error);
-      }
-    };
 
     this._element.addEventListener("play", () => {
       if (this.emitEvents[CustomEventNames.play]) {

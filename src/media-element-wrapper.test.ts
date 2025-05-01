@@ -96,7 +96,6 @@ describe("MediaElementWrapper", () => {
     it("should set up event listeners on the media element", () => {
       // Verify addEventListener was called for the relevant events
       expect(addEventListenerMock).toHaveBeenCalledWith("seeking", expect.any(Function));
-      expect(addEventListenerMock).toHaveBeenCalledWith("seeked", expect.any(Function));
       expect(addEventListenerMock).toHaveBeenCalledWith("play", expect.any(Function));
       expect(addEventListenerMock).toHaveBeenCalledWith("pause", expect.any(Function));
       expect(addEventListenerMock).toHaveBeenCalledWith("ratechange", expect.any(Function));
@@ -400,30 +399,6 @@ describe("MediaElementWrapper", () => {
       
       // Should not dispatch event
       expect(dispatchEventSpy).not.toHaveBeenCalled();
-    });
-    
-    it("should dispatch user seeked event", () => {
-      // Get the seeked listener and call it
-      const seekedCall = addEventListenerMock.mock.calls.find(
-        call => call[0] === "seeked"
-      );
-      expect(seekedCall).toBeDefined();
-      const seekedHandler = seekedCall![1];
-      
-      // Call with isUserInitiated = true (default state)
-      seekedHandler();
-      
-      expect(dispatchEventSpy).toHaveBeenCalledWith(
-        expect.objectContaining({
-          type: CustomEventNames.user.seeked,
-          detail: expect.objectContaining({
-            currentTime: expect.any(Number)
-          })
-        })
-      );
-      
-      // Should reset isUserInitiated to true after event
-      expect((wrapper as any).isUserInitiated).toBe(true);
     });
   });
   
