@@ -18,6 +18,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 - Clear, descriptive class and variable names
 - Strong typing with explicit return types
 - Error handling with try/catch and appropriate logging
+- Don't leave comments describing things that aren't there (e.g. after deleting something)
 
 ## Project Architecture
 - Main custom element named `media-sync`
