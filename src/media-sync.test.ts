@@ -104,8 +104,8 @@ describe("MediaSync", () => {
         set: wrapper2RateSetter
       });
       
-      // Simulate a user ratechange event from wrapper1
-      wrapper1.dispatchEvent(new CustomEvent(CustomEventNames.user.ratechange, {
+      // Simulate a ratechange event from wrapper1
+      wrapper1.dispatchEvent(new CustomEvent(CustomEventNames.ratechange, {
         detail: { playbackRate: 1.5 }
       }));
       
@@ -268,6 +268,10 @@ describe("MediaSync", () => {
       // Spy on wrapper's playbackRate setters
       const wrapper1RateSetter = vi.fn();
       const wrapper2RateSetter = vi.fn();
+      const wrapper1SuppressSpy = vi.spyOn(wrapper1, 'suppressEventType');
+      const wrapper2SuppressSpy = vi.spyOn(wrapper2, 'suppressEventType');
+      const wrapper1EnableSpy = vi.spyOn(wrapper1, 'enableEventType');
+      const wrapper2EnableSpy = vi.spyOn(wrapper2, 'enableEventType');
       
       Object.defineProperty(wrapper1, 'playbackRate', {
         set: wrapper1RateSetter
@@ -280,12 +284,24 @@ describe("MediaSync", () => {
       // Set the playbackRate on MediaSync
       mediaSyncElement.playbackRate = 2.0;
       
-      // Run all timers to handle any debounced rate changes
-      vi.runAllTimers();
+      // Expect event suppression to be called for both wrappers
+      expect(wrapper1SuppressSpy).toHaveBeenCalledWith(CustomEventNames.ratechange);
+      expect(wrapper2SuppressSpy).toHaveBeenCalledWith(CustomEventNames.ratechange);
       
       // Expect both wrappers to have their playbackRate set
       expect(wrapper1RateSetter).toHaveBeenCalledWith(2.0);
       expect(wrapper2RateSetter).toHaveBeenCalledWith(2.0);
+      
+      // Expect event re-enabling to NOT be called yet (due to setTimeout)
+      expect(wrapper1EnableSpy).not.toHaveBeenCalled();
+      expect(wrapper2EnableSpy).not.toHaveBeenCalled();
+      
+      // Run all timers to trigger the setTimeout callback
+      vi.runAllTimers();
+      
+      // Now expect event re-enabling to have been called
+      expect(wrapper1EnableSpy).toHaveBeenCalledWith(CustomEventNames.ratechange);
+      expect(wrapper2EnableSpy).toHaveBeenCalledWith(CustomEventNames.ratechange);
     });
   });
   

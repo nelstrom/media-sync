@@ -336,7 +336,7 @@ describe("MediaElementWrapper", () => {
       expect(dispatchEventSpy).not.toHaveBeenCalled();
     });
     
-    it("should dispatch user ratechange event", () => {
+    it("should dispatch ratechange event when emitEvents.ratechange is true", () => {
       // Create a mock event with a target having playbackRate
       const mockEvent = {
         target: {
@@ -351,18 +351,21 @@ describe("MediaElementWrapper", () => {
       expect(ratechangeCall).toBeDefined();
       const ratechangeHandler = ratechangeCall![1];
       
-      // Call with isUserInitiated = true (default state)
+      // Make sure emitEvents.ratechange is true
+      (wrapper as any).emitEvents[CustomEventNames.ratechange] = true;
+      
+      // Call handler
       ratechangeHandler(mockEvent);
       
       expect(dispatchEventSpy).toHaveBeenCalledWith(
         expect.objectContaining({
-          type: CustomEventNames.user.ratechange,
+          type: CustomEventNames.ratechange,
           detail: { playbackRate: 1.5 }
         })
       );
     });
     
-    it("should dispatch programmatic ratechange event", () => {
+    it("should not dispatch ratechange event when emitEvents.ratechange is false", () => {
       // Create a mock event with a target having playbackRate
       const mockEvent = {
         target: {
@@ -377,18 +380,14 @@ describe("MediaElementWrapper", () => {
       expect(ratechangeCall).toBeDefined();
       const ratechangeHandler = ratechangeCall![1];
       
-      // Set isUserInitiated to false manually for the test
-      (wrapper as any).isUserInitiated = false;
+      // Set emitEvents.ratechange to false
+      (wrapper as any).emitEvents[CustomEventNames.ratechange] = false;
       
       // Call handler
       ratechangeHandler(mockEvent);
       
-      expect(dispatchEventSpy).toHaveBeenCalledWith(
-        expect.objectContaining({
-          type: CustomEventNames.programmatic.ratechange,
-          detail: { playbackRate: 2.0 }
-        })
-      );
+      // Should not dispatch event
+      expect(dispatchEventSpy).not.toHaveBeenCalled();
     });
     
     it("should dispatch user seeked event", () => {

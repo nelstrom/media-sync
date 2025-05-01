@@ -17,6 +17,7 @@ export class MediaElementWrapperImpl extends EventTarget {
   private emitEvents: Record<string, boolean> = {
     [CustomEventNames.pause]: true,
     [CustomEventNames.play]: true,
+    [CustomEventNames.ratechange]: true,
   };
 
   constructor(
@@ -140,20 +141,16 @@ export class MediaElementWrapperImpl extends EventTarget {
       const playbackRate =
         (e?.target as HTMLMediaElement)?.playbackRate ??
         this._element.playbackRate;
-      if (this.isUserInitiated) {
+      
+      if (this.emitEvents[CustomEventNames.ratechange]) {
         this.dispatchEvent(
-          new CustomEvent(CustomEventNames.user.ratechange, {
+          new CustomEvent(CustomEventNames.ratechange, {
             detail: { playbackRate },
           })
         );
       } else {
-        this.dispatchEvent(
-          new CustomEvent(CustomEventNames.programmatic.ratechange, {
-            detail: { playbackRate },
-          })
-        );
+        Logger.debug(`(Not emitting a ratechange event from ${this.id})`);
       }
-      this.isUserInitiated = true;
     });
 
     this._element.play = async function () {

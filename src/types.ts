@@ -4,7 +4,10 @@ import { CustomEventNames } from "./constants";
 /**
  * Type for events that can be suppressed
  */
-export type SuppressibleEventName = (typeof CustomEventNames)["pause"] | (typeof CustomEventNames)["play"];
+export type SuppressibleEventName = 
+  | (typeof CustomEventNames)["pause"] 
+  | (typeof CustomEventNames)["play"]
+  | (typeof CustomEventNames)["ratechange"];
 
 /**
  * Media element wrapper interface

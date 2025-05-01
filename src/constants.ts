@@ -2,6 +2,7 @@
 export const CustomEventNames = {
   pause: "media-sync:pause",
   play: "media-sync:play",
+  ratechange: "media-sync:ratechange",
   programmatic: {
     seeking: "media-sync:programmatic:seeking",
     seeked: "media-sync:programmatic:seeked",

@@ -48,7 +48,6 @@ interface DriftCorrection extends DriftRecord {
 export class MediaSync extends HTMLElement {
   private mediaElements: MediaElementWrapper[] = [];
   private isSyncingSeeking: boolean = false;
-  private isSyncingRate: boolean = false;
   
   // Store the last seek time
   private lastSeekTime: number | null = null;
@@ -491,29 +490,11 @@ export class MediaSync extends HTMLElement {
         this.pauseTracks(othersToPause);
       });
 
-      // Handle user-initiated playback rate change events
-      wrapper.addEventListener(CustomEventNames.user.ratechange, (e) => {
+      // Handle playback rate change events
+      wrapper.addEventListener(CustomEventNames.ratechange, (e) => {
         const customEvent = e as CustomEvent;
         const playbackRate = customEvent.detail.playbackRate;
-        Logger.debug(`User ratechange event from element ${index}: ${playbackRate}`);
-        
-        // Skip synchronization if disabled
-        if (this._disabled) {
-          Logger.debug("Synchronization is disabled, skipping playback rate sync");
-          return;
-        }
-        
-        // Find other media elements (not this one) to change rate
-        const othersToChange = this.otherTracks(wrapper);
-        Logger.debug(`Updating playback rate to ${playbackRate} for ${othersToChange.length} other media elements (excluding source element)`);
-        this.setPlaybackRateTracks(othersToChange, playbackRate);
-      });
-
-      // Handle programmatic playback rate change events
-      wrapper.addEventListener(CustomEventNames.programmatic.ratechange, (e) => {
-        const customEvent = e as CustomEvent;
-        const playbackRate = customEvent.detail.playbackRate;
-        Logger.debug(`Programmatic ratechange event from element ${index}: ${playbackRate}`);
+        Logger.debug(`Ratechange event from element ${index}: ${playbackRate}`);
         
         // Skip synchronization if disabled
         if (this._disabled) {
@@ -799,11 +780,6 @@ export class MediaSync extends HTMLElement {
       return;
     }
     
-    if (this.isSyncingRate) {
-      Logger.debug("setPlaybackRateTracks called while syncing. Skipping...");
-      return;
-    }
-    
     // Skip synchronization if disabled
     if (this._disabled) {
       Logger.debug("Synchronization is disabled, skipping playback rate sync");
@@ -812,17 +788,17 @@ export class MediaSync extends HTMLElement {
     
     Logger.debug(`Setting playback rate of ${mediaElements.length} media elements to ${rate}`);
     
-    // Set flag to prevent infinite loops from programmatic ratechange events
-    this.isSyncingRate = true;
+    // Suppress ratechange events to prevent infinite looping
+    this.suppressEvents(CustomEventNames.ratechange);
     
     // Set playback rate for all specified media elements
     mediaElements.forEach(media => {
       media.playbackRate = rate;
     });
     
-    // Reset flag after a short delay to prevent race conditions
+    // Re-enable events after a short delay to prevent race conditions
     setTimeout(() => {
-      this.isSyncingRate = false;
+      this.enableEvents(CustomEventNames.ratechange);
     }, 10);
   }
 }
