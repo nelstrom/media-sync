@@ -1,5 +1,5 @@
-import { CustomEventNames } from "./constants";
-import { Logger } from "./utils";
+import { CustomEventNames, SEEK_DEBOUNCE_DELAY } from "./constants";
+import { Logger, debounce } from "./utils";
 import { SuppressibleEventName } from "./types";
 
 /**
@@ -18,6 +18,7 @@ export class MediaElementWrapperImpl extends EventTarget {
     [CustomEventNames.pause]: true,
     [CustomEventNames.play]: true,
     [CustomEventNames.ratechange]: true,
+    [CustomEventNames.seeking]: true,
   };
 
   constructor(
@@ -95,24 +96,27 @@ export class MediaElementWrapperImpl extends EventTarget {
       Logger.error("Failed to override playbackRate property");
     }
 
+    // Debounce seeking events to prevent rapid-fire events
+    const debouncedSeekingHandler = debounce((currentTime: number) => {
+      if (this.emitEvents[CustomEventNames.seeking]) {
+        this.dispatchEvent(
+          new CustomEvent(CustomEventNames.seeking, {
+            detail: { currentTime },
+          })
+        );
+      } else {
+        Logger.debug(`(Not emitting a seeking event from ${this.id})`);
+      }
+    }, SEEK_DEBOUNCE_DELAY);
+
     this._element.addEventListener("seeking", (e) => {
       // Use this._element.currentTime as a fallback if e.target is not available (useful in tests)
       const currentTime =
         (e?.target as HTMLMediaElement)?.currentTime ??
         this._element.currentTime;
-      if (this.isUserInitiated) {
-        this.dispatchEvent(
-          new CustomEvent(CustomEventNames.user.seeking, {
-            detail: { currentTime },
-          })
-        );
-      } else {
-        this.dispatchEvent(
-          new CustomEvent(CustomEventNames.programmatic.seeking, {
-            detail: { currentTime },
-          })
-        );
-      }
+      
+      // Use the debounced handler to prevent rapid-fire seeking events
+      debouncedSeekingHandler(currentTime);
     });
 
     this._element.addEventListener("seeked", (e) => {

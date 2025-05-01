@@ -3,12 +3,14 @@ import { MediaElementWrapperImpl } from "./media-element-wrapper";
 import { CustomEventNames } from "./constants";
 
 // Mock the Logger utility - must be before imports due to hoisting
-vi.mock("./utils", () => {
+vi.mock("./utils", async () => {
   return {
     Logger: {
       debug: vi.fn(),
       error: vi.fn()
-    }
+    },
+    // Mock debounce to immediately call the function
+    debounce: vi.fn().mockImplementation((fn) => fn)
   };
 });
 
@@ -213,7 +215,7 @@ describe("MediaElementWrapper", () => {
       dispatchEventSpy = vi.spyOn(wrapper, 'dispatchEvent');
     });
     
-    it("should dispatch user seeking event", () => {
+    it("should debounce and dispatch seeking event when emitEvents.seeking is true", () => {
       // Get the seeking listener and call it
       const seekingCall = addEventListenerMock.mock.calls.find(
         call => call[0] === "seeking"
@@ -221,23 +223,29 @@ describe("MediaElementWrapper", () => {
       expect(seekingCall).toBeDefined();
       const seekingHandler = seekingCall![1];
       
-      // Call with isUserInitiated = true (default state)
-      seekingHandler();
+      // Set emitEvents.seeking to true
+      (wrapper as any).emitEvents[CustomEventNames.seeking] = true;
       
+      // Call handler with mock event
+      seekingHandler({
+        target: {
+          currentTime: 42
+        }
+      });
+      
+      // Since we're mocking debounce to call the function immediately,
+      // we can check that the event was dispatched
       expect(dispatchEventSpy).toHaveBeenCalledWith(
         expect.objectContaining({
-          type: CustomEventNames.user.seeking,
+          type: CustomEventNames.seeking,
           detail: expect.objectContaining({
-            currentTime: expect.any(Number)
+            currentTime: 42
           })
         })
       );
     });
     
-    it("should dispatch programmatic seeking event", () => {
-      // Simulate programmatic seek by setting isUserInitiated to false
-      wrapper.currentTime = 50;
-      
+    it("should not dispatch seeking event when emitEvents.seeking is false", () => {
       // Get the seeking listener and call it
       const seekingCall = addEventListenerMock.mock.calls.find(
         call => call[0] === "seeking"
@@ -245,17 +253,21 @@ describe("MediaElementWrapper", () => {
       expect(seekingCall).toBeDefined();
       const seekingHandler = seekingCall![1];
       
-      // Call handler (isUserInitiated should now be false)
-      seekingHandler();
+      // Set emitEvents.seeking to false
+      (wrapper as any).emitEvents[CustomEventNames.seeking] = false;
       
-      expect(dispatchEventSpy).toHaveBeenCalledWith(
-        expect.objectContaining({
-          type: CustomEventNames.programmatic.seeking,
-          detail: expect.objectContaining({
-            currentTime: expect.any(Number)
-          })
-        })
-      );
+      // Reset the mock to clear previous calls
+      dispatchEventSpy.mockClear();
+      
+      // Call handler with mock event
+      seekingHandler({
+        target: {
+          currentTime: 42
+        }
+      });
+      
+      // Check that no event was dispatched
+      expect(dispatchEventSpy).not.toHaveBeenCalled();
     });
     
     it("should dispatch play event when emitEvents.play is true", () => {

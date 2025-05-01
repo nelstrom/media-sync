@@ -1,10 +1,7 @@
-import { CustomEventNames } from "./constants";
+import { CustomEventNames, SEEK_DEBOUNCE_DELAY } from "./constants";
 import { MediaElementWrapperImpl } from "./media-element-wrapper";
 import { MediaElementWrapper, SuppressibleEventName } from "./types";
-import { Logger, debounce } from "./utils";
-
-// Debounce delay for seeking events (in milliseconds)
-const SEEK_DEBOUNCE_DELAY = 10;
+import { Logger } from "./utils";
 
 // Sample every 100ms (10 samples per second)
 const DRIFT_SAMPLE_INTERVAL = 100;
@@ -48,9 +45,6 @@ interface DriftCorrection extends DriftRecord {
 export class MediaSync extends HTMLElement {
   private mediaElements: MediaElementWrapper[] = [];
   private isSyncingSeeking: boolean = false;
-  
-  // Store the last seek time
-  private lastSeekTime: number | null = null;
   
   // Drift sampling properties
   public driftSamples: (DriftSample | DriftCorrection)[] = [];
@@ -402,9 +396,9 @@ export class MediaSync extends HTMLElement {
         isMain,
       });
 
-      // Handle user-initiated seeking events with debouncing
-      const handleUserSeeking = debounce((e?: CustomEvent) => {
-        Logger.debug(`User seeking event from element ${index}`);
+      // Handle seeking events
+      wrapper.addEventListener(CustomEventNames.seeking, (e) => {
+        Logger.debug(`Seeking event from element ${index}`);
         
         // Skip synchronization if disabled
         if (this._disabled) {
@@ -412,29 +406,9 @@ export class MediaSync extends HTMLElement {
           return;
         }
         
-        // Get time from event detail if available, otherwise use element's currentTime
-        const seekTime = e?.detail?.currentTime ?? element.currentTime;
-        
-        // Store the time for reference
-        this.lastSeekTime = seekTime;
-        
-        // Schedule the actual sync with a small delay to capture the final position
-        setTimeout(() => {
-          if (this.lastSeekTime !== null) {
-            // Get all tracks except the source and seek them
-            const targetTracks = this.otherTracks(wrapper);
-            this.seekTracks(targetTracks, this.lastSeekTime);
-          }
-        }, SEEK_DEBOUNCE_DELAY);
-      }, SEEK_DEBOUNCE_DELAY);
-      
-      // Handle programmatic seeking events
-      wrapper.addEventListener(CustomEventNames.programmatic.seeking, (e) => {
-        Logger.debug(`Programmatic seeking event from element ${index}`);
-        
-        // Skip synchronization if disabled
-        if (this._disabled) {
-          Logger.debug("Synchronization is disabled, skipping seek sync");
+        // Skip if we're already in a seeking operation to prevent loops
+        if (this.isSyncingSeeking) {
+          Logger.debug("Already in a seeking operation, skipping");
           return;
         }
         
@@ -444,11 +418,6 @@ export class MediaSync extends HTMLElement {
         // Get all tracks except the source and seek them
         const targetTracks = this.otherTracks(wrapper);
         this.seekTracks(targetTracks, seekTime);
-      });
-      
-      // Handle user-initiated seeking
-      wrapper.addEventListener(CustomEventNames.user.seeking, (e) => {
-        handleUserSeeking(e as CustomEvent);
       });
 
       // Log seeked events
@@ -537,11 +506,6 @@ export class MediaSync extends HTMLElement {
       return;
     }
     
-    if (this.isSyncingSeeking) {
-      Logger.debug("seekTracks called while syncing. Skipping...");
-      return;
-    }
-    
     // Skip synchronization if disabled
     if (this._disabled) {
       Logger.debug("Synchronization is disabled, skipping seek sync");
@@ -554,7 +518,10 @@ export class MediaSync extends HTMLElement {
     this.stopDriftSampling();
     this.stopDriftCorrection();
     
-    // Set flag to prevent infinite loops from programmatic seeking events
+    // Suppress seeking events to prevent infinite looping
+    this.suppressEvents(CustomEventNames.seeking);
+    
+    // Set flag to indicate we're in a seeking operation
     this.isSyncingSeeking = true;
     
     // Seek all specified media elements
@@ -562,9 +529,10 @@ export class MediaSync extends HTMLElement {
       media.currentTime = time;
     });
     
-    // Reset flag after a short delay to prevent race conditions
+    // Reset flag and re-enable events after a short delay to prevent race conditions
     setTimeout(() => {
       this.isSyncingSeeking = false;
+      this.enableEvents(CustomEventNames.seeking);
       
       // If all elements are playing after seeking, restart drift sampling and correction
       const allPlaying = this.mediaElements.every(media => media.isPlaying());

@@ -7,7 +7,8 @@ import { CustomEventNames } from "./constants";
 export type SuppressibleEventName = 
   | (typeof CustomEventNames)["pause"] 
   | (typeof CustomEventNames)["play"]
-  | (typeof CustomEventNames)["ratechange"];
+  | (typeof CustomEventNames)["ratechange"]
+  | (typeof CustomEventNames)["seeking"];
 
 /**
  * Media element wrapper interface

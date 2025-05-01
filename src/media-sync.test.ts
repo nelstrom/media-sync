@@ -3,10 +3,8 @@ import { MediaSync } from "./register";
 import { CustomEventNames } from "./constants";
 
 // Mock the utils module to make debounce work synchronously in tests
-vi.mock("./utils", async (importOriginal) => {
-  const originalModule = await importOriginal<typeof import("./utils")>();
+vi.mock("./utils", async () => {
   return {
-    ...originalModule,
     debounce: vi.fn().mockImplementation((fn) => fn),
     Logger: {
       debug: vi.fn(),
@@ -125,17 +123,34 @@ describe("MediaSync", () => {
         set: wrapper2TimeSetter
       });
       
-      // Simulate a user seeking event from wrapper1 with currentTime in detail
-      wrapper1.dispatchEvent(new CustomEvent(CustomEventNames.user.seeking, {
+      const wrapper1SuppressSpy = vi.spyOn(wrapper1, 'suppressEventType');
+      const wrapper2SuppressSpy = vi.spyOn(wrapper2, 'suppressEventType');
+      const wrapper1EnableSpy = vi.spyOn(wrapper1, 'enableEventType');
+      const wrapper2EnableSpy = vi.spyOn(wrapper2, 'enableEventType');
+      
+      // Simulate a seeking event from wrapper1 with currentTime in detail
+      wrapper1.dispatchEvent(new CustomEvent(CustomEventNames.seeking, {
         detail: { currentTime: 15.5 }
       }));
       
-      // Run all timers to handle the debounced seeking
-      vi.runAllTimers();
+      // Expect event suppression to be called
+      expect(wrapper1SuppressSpy).toHaveBeenCalledWith(CustomEventNames.seeking);
+      expect(wrapper2SuppressSpy).toHaveBeenCalledWith(CustomEventNames.seeking);
       
       // Expect wrapper2's currentTime to be set to the time in the event detail
       expect(wrapper1TimeSetter).not.toHaveBeenCalled();
       expect(wrapper2TimeSetter).toHaveBeenCalledWith(15.5);
+      
+      // Expect event re-enabling to NOT be called yet (due to setTimeout)
+      expect(wrapper1EnableSpy).not.toHaveBeenCalled();
+      expect(wrapper2EnableSpy).not.toHaveBeenCalled();
+      
+      // Run all timers to trigger the setTimeout callback
+      vi.runAllTimers();
+      
+      // Now expect event re-enabling to have been called
+      expect(wrapper1EnableSpy).toHaveBeenCalledWith(CustomEventNames.seeking);
+      expect(wrapper2EnableSpy).toHaveBeenCalledWith(CustomEventNames.seeking);
     });
   });
 
@@ -226,6 +241,10 @@ describe("MediaSync", () => {
       // Spy on wrapper's currentTime setters
       const wrapper1TimeSetter = vi.fn();
       const wrapper2TimeSetter = vi.fn();
+      const wrapper1SuppressSpy = vi.spyOn(wrapper1, 'suppressEventType');
+      const wrapper2SuppressSpy = vi.spyOn(wrapper2, 'suppressEventType');
+      const wrapper1EnableSpy = vi.spyOn(wrapper1, 'enableEventType');
+      const wrapper2EnableSpy = vi.spyOn(wrapper2, 'enableEventType');
       
       Object.defineProperty(wrapper1, 'currentTime', {
         set: wrapper1TimeSetter
@@ -238,12 +257,24 @@ describe("MediaSync", () => {
       // Set the currentTime on MediaSync
       mediaSyncElement.currentTime = 35.5;
       
-      // Run all timers to handle any debounced seeking
-      vi.runAllTimers();
+      // Expect event suppression to be called
+      expect(wrapper1SuppressSpy).toHaveBeenCalledWith(CustomEventNames.seeking);
+      expect(wrapper2SuppressSpy).toHaveBeenCalledWith(CustomEventNames.seeking);
       
       // Expect both wrappers to have their currentTime set
       expect(wrapper1TimeSetter).toHaveBeenCalledWith(35.5);
       expect(wrapper2TimeSetter).toHaveBeenCalledWith(35.5);
+      
+      // Expect event re-enabling to NOT be called yet (due to setTimeout)
+      expect(wrapper1EnableSpy).not.toHaveBeenCalled();
+      expect(wrapper2EnableSpy).not.toHaveBeenCalled();
+      
+      // Run all timers to handle any debounced seeking
+      vi.runAllTimers();
+      
+      // Now expect event re-enabling to have been called
+      expect(wrapper1EnableSpy).toHaveBeenCalledWith(CustomEventNames.seeking);
+      expect(wrapper2EnableSpy).toHaveBeenCalledWith(CustomEventNames.seeking);
     });
 
     it("should get the playbackRate from the main media element", () => {
@@ -318,26 +349,41 @@ describe("MediaSync", () => {
         set: wrapper2TimeSetter
       });
       
-      // Trigger multiple seeking events in quick succession
-      for (let i = 0; i < 5; i++) {
-        // Simulate a user seeking event from wrapper1 with different times
-        wrapper1.dispatchEvent(new CustomEvent(CustomEventNames.user.seeking, {
-          detail: { currentTime: i * 10 }
-        }));
-      }
+      const wrapper1SuppressSpy = vi.spyOn(wrapper1, 'suppressEventType');
+      const wrapper2SuppressSpy = vi.spyOn(wrapper2, 'suppressEventType');
       
-      // Run all timers to handle the debounced seeking
+      // First event should trigger synchronization
+      wrapper1.dispatchEvent(new CustomEvent(CustomEventNames.seeking, {
+        detail: { currentTime: 40 }
+      }));
+      
+      // Verify that event suppression is called
+      expect(wrapper1SuppressSpy).toHaveBeenCalledWith(CustomEventNames.seeking);
+      expect(wrapper2SuppressSpy).toHaveBeenCalledWith(CustomEventNames.seeking);
+      
+      // Verify that wrapper2's currentTime is set
+      expect(wrapper2TimeSetter).toHaveBeenCalledWith(40);
+      
+      // Create a second event while we're still suppressing
+      // This should be ignored because isSyncingSeeking is true
+      wrapper1.dispatchEvent(new CustomEvent(CustomEventNames.seeking, {
+        detail: { currentTime: 50 }
+      }));
+      
+      // First event should have only called wrapper2's currentTime once
+      expect(wrapper2TimeSetter).toHaveBeenCalledTimes(1);
+      
+      // Run all timers to complete the seeking process
       vi.runAllTimers();
       
-      // Verify that wrapper1's currentTime was not set
-      expect(wrapper1TimeSetter).not.toHaveBeenCalled(); // Final value (4 * 10)
+      // Now try another event after events are re-enabled
+      wrapper1.dispatchEvent(new CustomEvent(CustomEventNames.seeking, {
+        detail: { currentTime: 60 }
+      }));
       
-      // Verify that wrapper2's currentTime was only set to the final value
-      expect(wrapper2TimeSetter).toHaveBeenCalledWith(40); // Final value (4 * 10)
-      
-      // Verify that multiple rapid seek events only result in a single sync
-      // The last event's time (40) should be used for synchronization
-      expect(wrapper2TimeSetter).toHaveBeenCalledTimes(1);
+      // This should work and set wrapper2's time again
+      expect(wrapper2TimeSetter).toHaveBeenCalledWith(60);
+      expect(wrapper2TimeSetter).toHaveBeenCalledTimes(2);
     });
   });
 });
