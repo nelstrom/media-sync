@@ -48,7 +48,6 @@ interface DriftCorrection extends DriftRecord {
 export class MediaSync extends HTMLElement {
   private mediaElements: MediaElementWrapper[] = [];
   private isSyncingPlay: boolean = false;
-  private isSyncingPause: boolean = false;
   private isSyncingSeeking: boolean = false;
   private isSyncingRate: boolean = false;
   
@@ -495,9 +494,8 @@ export class MediaSync extends HTMLElement {
         this.playTracks(othersToPlay);
       });
 
-      // Handle user-initiated pause events
-      wrapper.addEventListener(CustomEventNames.user.pause, () => {
-        Logger.debug(`User pause event from element ${index}`);
+      wrapper.addEventListener(CustomEventNames.pause, () => {
+        Logger.debug(`Pause event from element ${index}`);
         
         // Skip synchronization if disabled
         if (this._disabled) {
@@ -505,25 +503,8 @@ export class MediaSync extends HTMLElement {
           return;
         }
         
-        // Find other media elements (not this one) to pause
-        const othersToPause = this.otherTracks(wrapper);
-        Logger.debug(`Pausing ${othersToPause.length} other media elements (excluding source element)`);
-        this.pauseTracks(othersToPause);
-      });
-
-      // Handle programmatic pause events
-      wrapper.addEventListener(CustomEventNames.programmatic.pause, () => {
-        Logger.debug(`Programmatic pause event from element ${index}`);
         
-        // Skip synchronization if disabled
-        if (this._disabled) {
-          Logger.debug("Synchronization is disabled, skipping pause sync");
-          return;
-        }
-        
-        // Find other media elements (not this one) to pause
         const othersToPause = this.otherTracks(wrapper);
-        Logger.debug(`Pausing ${othersToPause.length} other media elements (excluding source element)`);
         this.pauseTracks(othersToPause);
       });
 
@@ -727,15 +708,10 @@ export class MediaSync extends HTMLElement {
       return;
     }
 
-    if (this.isSyncingPause) {
-      Logger.debug("pauseTracks called while syncing. Skipping...");
-      return;
-    }
-
     Logger.debug("MediaSync: Pausing all media elements");
 
-    // Set flag to prevent infinite loops from programmatic pause events
-    this.isSyncingPause = true;
+    // Suppress pause events to prevent infinite looping
+    this.mediaElements.forEach((wrapper) => wrapper.suppressEventType('pause'))
 
     // Pause all media elements - this is synchronous
     mediaElements.forEach((media) => media.pause());
@@ -744,10 +720,9 @@ export class MediaSync extends HTMLElement {
     this.stopDriftSampling();
     this.stopDriftCorrection();
 
-    // Reset flag after pausing is complete
     // Use setTimeout to ensure this runs after the current execution cycle
     setTimeout(() => {
-      this.isSyncingPause = false;
+      this.mediaElements.forEach((wrapper) => wrapper.enableEventType('pause'))
     }, 0);
   }
   

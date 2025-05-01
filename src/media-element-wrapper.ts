@@ -13,6 +13,9 @@ export class MediaElementWrapperImpl extends EventTarget {
   private isUserInitiated: boolean = true;
   protected audioContext?: AudioContext;
   private gainNode?: GainNode;
+  private emitEvents = {
+    pause: true,
+  };
 
   constructor(
     element: HTMLMediaElement,
@@ -27,7 +30,7 @@ export class MediaElementWrapperImpl extends EventTarget {
 
     this.setupEventDispatchers();
   }
-  
+
   /**
    * Get the underlying HTML media element (for internal use only)
    * @internal
@@ -91,32 +94,62 @@ export class MediaElementWrapperImpl extends EventTarget {
 
     this._element.addEventListener("seeking", (e) => {
       // Use this._element.currentTime as a fallback if e.target is not available (useful in tests)
-      const currentTime = (e?.target as HTMLMediaElement)?.currentTime ?? this._element.currentTime;
+      const currentTime =
+        (e?.target as HTMLMediaElement)?.currentTime ??
+        this._element.currentTime;
       if (this.isUserInitiated) {
-        this.dispatchEvent(new CustomEvent(CustomEventNames.user.seeking, { detail: { currentTime } }));
+        this.dispatchEvent(
+          new CustomEvent(CustomEventNames.user.seeking, {
+            detail: { currentTime },
+          })
+        );
       } else {
-        this.dispatchEvent(new CustomEvent(CustomEventNames.programmatic.seeking, { detail: { currentTime } }));
+        this.dispatchEvent(
+          new CustomEvent(CustomEventNames.programmatic.seeking, {
+            detail: { currentTime },
+          })
+        );
       }
     });
 
     this._element.addEventListener("seeked", (e) => {
       // Use this._element.currentTime as a fallback if e.target is not available (useful in tests)
-      const currentTime = (e?.target as HTMLMediaElement)?.currentTime ?? this._element.currentTime;
+      const currentTime =
+        (e?.target as HTMLMediaElement)?.currentTime ??
+        this._element.currentTime;
       if (this.isUserInitiated) {
-        this.dispatchEvent(new CustomEvent(CustomEventNames.user.seeked, { detail: { currentTime } }));
+        this.dispatchEvent(
+          new CustomEvent(CustomEventNames.user.seeked, {
+            detail: { currentTime },
+          })
+        );
       } else {
-        this.dispatchEvent(new CustomEvent(CustomEventNames.programmatic.seeked, { detail: { currentTime } }));
+        this.dispatchEvent(
+          new CustomEvent(CustomEventNames.programmatic.seeked, {
+            detail: { currentTime },
+          })
+        );
       }
       this.isUserInitiated = true;
     });
 
     this._element.addEventListener("ratechange", (e) => {
       // Use this._element.playbackRate as a fallback if e.target is not available (useful in tests)
-      const playbackRate = (e?.target as HTMLMediaElement)?.playbackRate ?? this._element.playbackRate;
+      const playbackRate =
+        (e?.target as HTMLMediaElement)?.playbackRate ??
+        this._element.playbackRate;
       if (this.isUserInitiated) {
-        this.dispatchEvent(new CustomEvent(CustomEventNames.user.ratechange, { detail: { playbackRate } }));
+        this.dispatchEvent(
+          new CustomEvent(CustomEventNames.user.ratechange, {
+            detail: { playbackRate },
+          })
+        );
       } else {
-        this.dispatchEvent(new CustomEvent(CustomEventNames.programmatic.ratechange, { detail: { playbackRate } }));
+        this.dispatchEvent(
+          new CustomEvent(CustomEventNames.programmatic.ratechange, {
+            detail: { playbackRate },
+          })
+        );
       }
       this.isUserInitiated = true;
     });
@@ -139,22 +172,24 @@ export class MediaElementWrapperImpl extends EventTarget {
       }
     });
 
-    // Override the pause method to track if pause was programmatically triggered
-    const originalPause = this._element.pause;
-    this._element.pause = function() {
-      self.isUserInitiated = false;
-      originalPause.call(this);
-    };
-
     // Listen for pause events and dispatch appropriate custom events
     this._element.addEventListener("pause", () => {
-      if (this.isUserInitiated) {
-        this.dispatchEvent(new CustomEvent(CustomEventNames.user.pause));
+      if (this.emitEvents.pause) {
+        this.dispatchEvent(new CustomEvent(CustomEventNames.pause));
       } else {
-        this.dispatchEvent(new CustomEvent(CustomEventNames.programmatic.pause));
+        Logger.debug(`(Not emitting a pause event from ${this.id})`);
       }
-      this.isUserInitiated = true;
     });
+  }
+
+  public suppressEventType(name: "pause") {
+    Logger.debug(`suppressing ${name} events for ${this.id}`);
+    this.emitEvents[name] = false;
+  }
+
+  public enableEventType(name: "pause") {
+    Logger.debug(`enabling ${name} events for ${this.id}`);
+    this.emitEvents[name] = true;
   }
 
   /**
@@ -169,14 +204,14 @@ export class MediaElementWrapperImpl extends EventTarget {
       Logger.error(`Error playing media ${this.id}:`, error);
     }
   }
-  
+
   /**
    * Check if the media is currently playing
    */
   public isPlaying(): boolean {
     return !this._element.paused;
   }
-  
+
   /**
    * Check if the media is currently paused
    */
@@ -229,7 +264,7 @@ export class MediaElementWrapperImpl extends EventTarget {
     const diff = Math.abs(this.currentTime - this.duration);
     return diff < 0.1;
   }
-  
+
   /**
    * Connect this media element to a Web Audio API context
    * This allows for more precise synchronization
@@ -239,28 +274,28 @@ export class MediaElementWrapperImpl extends EventTarget {
       // Already connected
       return;
     }
-    
+
     try {
       // Store reference to the audio context
       this.audioContext = context;
-      
+
       // Create a source node from the media element
       this.audioSource = context.createMediaElementSource(this._element);
-      
+
       // Create a gain node for potential volume control
       this.gainNode = context.createGain();
-      
+
       // Connect the source to the gain node, then to the destination (speakers)
       this.audioSource.connect(this.gainNode);
       this.gainNode.connect(context.destination);
-      
+
       Logger.debug(`Connected ${this.id} to Web Audio API context`);
     } catch (error) {
       Logger.error(`Error connecting ${this.id} to Web Audio API:`, error);
       this.disconnectFromAudioContext();
     }
   }
-  
+
   /**
    * Disconnect from Web Audio API context
    */
@@ -270,7 +305,7 @@ export class MediaElementWrapperImpl extends EventTarget {
         this.gainNode.disconnect();
         this.gainNode = undefined;
       }
-      
+
       if (this.audioSource) {
         this.audioSource.disconnect();
         this.audioSource = undefined;
@@ -295,7 +330,7 @@ export class MediaElementWrapperImpl extends EventTarget {
    */
   public set playbackRate(rate: number) {
     if (!this._element) return;
-    
+
     Logger.debug(`Setting ${this.id} playbackRate to: ${rate}`);
     this._element.playbackRate = rate;
   }

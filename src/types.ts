@@ -47,6 +47,16 @@ export interface MediaElementWrapper {
    * Check if the media has ended
    */
   isEnded(): boolean;
+
+  /**
+   * Suppress events of the specified type from being emitted
+   */
+  suppressEventType(name: 'pause'): void;
+
+  /**
+   * Enable events of the specified type to be emitted
+   */
+  enableEventType(name: 'pause'): void;
   
   /**
    * Check if the media is currently playing
