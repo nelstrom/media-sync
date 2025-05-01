@@ -1,4 +1,4 @@
-import { CustomEventNames, SEEK_DEBOUNCE_DELAY } from "./constants";
+import { MediaEvent, SEEK_DEBOUNCE_DELAY } from "./constants";
 import { MediaElementWrapperImpl } from "./media-element-wrapper";
 import { MediaElementWrapper, SuppressibleEventName } from "./types";
 import { Logger } from "./utils";
@@ -397,7 +397,7 @@ export class MediaSync extends HTMLElement {
       });
 
       // Handle seeking events
-      wrapper.addEventListener(CustomEventNames.seeking, (e) => {
+      wrapper.addEventListener(MediaEvent.seeking, (e) => {
         Logger.debug(`Seeking event from element ${index}`);
         
         // Skip synchronization if disabled
@@ -422,7 +422,7 @@ export class MediaSync extends HTMLElement {
 
 
       // Handle play events
-      wrapper.addEventListener(CustomEventNames.play, () => {
+      wrapper.addEventListener(MediaEvent.play, () => {
         Logger.debug(`Play event from element ${index}`);
         
         // Skip synchronization if disabled
@@ -437,7 +437,7 @@ export class MediaSync extends HTMLElement {
         this.playTracks(othersToPlay);
       });
 
-      wrapper.addEventListener(CustomEventNames.pause, () => {
+      wrapper.addEventListener(MediaEvent.pause, () => {
         Logger.debug(`Pause event from element ${index}`);
         
         // Skip synchronization if disabled
@@ -452,7 +452,7 @@ export class MediaSync extends HTMLElement {
       });
 
       // Handle playback rate change events
-      wrapper.addEventListener(CustomEventNames.ratechange, (e) => {
+      wrapper.addEventListener(MediaEvent.ratechange, (e) => {
         const customEvent = e as CustomEvent;
         const playbackRate = customEvent.detail.playbackRate;
         Logger.debug(`Ratechange event from element ${index}: ${playbackRate}`);
@@ -511,7 +511,7 @@ export class MediaSync extends HTMLElement {
     this.stopDriftCorrection();
     
     // Suppress seeking events to prevent infinite looping
-    this.suppressEvents(CustomEventNames.seeking);
+    this.suppressEvents(MediaEvent.seeking);
     
     // Set flag to indicate we're in a seeking operation
     this.isSyncingSeeking = true;
@@ -524,7 +524,7 @@ export class MediaSync extends HTMLElement {
     // Reset flag and re-enable events after a short delay to prevent race conditions
     setTimeout(() => {
       this.isSyncingSeeking = false;
-      this.enableEvents(CustomEventNames.seeking);
+      this.enableEvents(MediaEvent.seeking);
       
       // If all elements are playing after seeking, restart drift sampling and correction
       const allPlaying = this.mediaElements.every(media => media.isPlaying());
@@ -578,7 +578,7 @@ export class MediaSync extends HTMLElement {
       Logger.debug(`MediaSync: Playing ${mediaElements.length} media elements`);
       
       // Suppress play events to prevent infinite looping
-      this.suppressEvents(CustomEventNames.play);
+      this.suppressEvents(MediaEvent.play);
       
       // When using Web Audio API, ensure the audio context is resumed
       if (this.useWebAudio && this.audioContext && this.audioContext.state === 'suspended') {
@@ -601,12 +601,12 @@ export class MediaSync extends HTMLElement {
 
       // Re-enable events after all play operations are complete
       setTimeout(() => {
-        this.enableEvents(CustomEventNames.play);
+        this.enableEvents(MediaEvent.play);
       }, 0);
     } catch (error) {
       Logger.error("Error playing media elements:", error);
       // Make sure to re-enable events even if there's an error
-      this.enableEvents(CustomEventNames.play);
+      this.enableEvents(MediaEvent.play);
     }
   }
 
@@ -648,7 +648,7 @@ export class MediaSync extends HTMLElement {
     Logger.debug("MediaSync: Pausing all media elements");
 
     // Suppress pause events to prevent infinite looping
-    this.suppressEvents(CustomEventNames.pause);
+    this.suppressEvents(MediaEvent.pause);
 
     // Pause all media elements - this is synchronous
     mediaElements.forEach((media) => media.pause());
@@ -659,7 +659,7 @@ export class MediaSync extends HTMLElement {
 
     // Use setTimeout to ensure this runs after the current execution cycle
     setTimeout(() => {
-      this.enableEvents(CustomEventNames.pause);
+      this.enableEvents(MediaEvent.pause);
     }, 0);
   }
   
@@ -749,7 +749,7 @@ export class MediaSync extends HTMLElement {
     Logger.debug(`Setting playback rate of ${mediaElements.length} media elements to ${rate}`);
     
     // Suppress ratechange events to prevent infinite looping
-    this.suppressEvents(CustomEventNames.ratechange);
+    this.suppressEvents(MediaEvent.ratechange);
     
     // Set playback rate for all specified media elements
     mediaElements.forEach(media => {
@@ -758,7 +758,7 @@ export class MediaSync extends HTMLElement {
     
     // Re-enable events after a short delay to prevent race conditions
     setTimeout(() => {
-      this.enableEvents(CustomEventNames.ratechange);
+      this.enableEvents(MediaEvent.ratechange);
     }, 10);
   }
 }

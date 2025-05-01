@@ -1,6 +1,6 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { MediaElementWrapperImpl } from "./media-element-wrapper";
-import { CustomEventNames } from "./constants";
+import { MediaEvent } from "./constants";
 
 // Mock the Logger utility - must be before imports due to hoisting
 vi.mock("./utils", async () => {
@@ -223,7 +223,7 @@ describe("MediaElementWrapper", () => {
       const seekingHandler = seekingCall![1];
       
       // Set emitEvents.seeking to true
-      (wrapper as any).emitEvents[CustomEventNames.seeking] = true;
+      (wrapper as any).emitEvents[MediaEvent.seeking] = true;
       
       // Call handler with mock event
       seekingHandler({
@@ -236,7 +236,7 @@ describe("MediaElementWrapper", () => {
       // we can check that the event was dispatched
       expect(dispatchEventSpy).toHaveBeenCalledWith(
         expect.objectContaining({
-          type: CustomEventNames.seeking,
+          type: MediaEvent.seeking,
           detail: expect.objectContaining({
             currentTime: 42
           })
@@ -253,7 +253,7 @@ describe("MediaElementWrapper", () => {
       const seekingHandler = seekingCall![1];
       
       // Set emitEvents.seeking to false
-      (wrapper as any).emitEvents[CustomEventNames.seeking] = false;
+      (wrapper as any).emitEvents[MediaEvent.seeking] = false;
       
       // Reset the mock to clear previous calls
       dispatchEventSpy.mockClear();
@@ -278,14 +278,14 @@ describe("MediaElementWrapper", () => {
       const playHandler = playCall![1];
       
       // Make sure emitEvents.play is true
-      (wrapper as any).emitEvents[CustomEventNames.play] = true;
+      (wrapper as any).emitEvents[MediaEvent.play] = true;
       
       // Call the handler
       playHandler();
       
       expect(dispatchEventSpy).toHaveBeenCalledWith(
         expect.objectContaining({
-          type: CustomEventNames.play
+          type: MediaEvent.play
         })
       );
     });
@@ -299,7 +299,7 @@ describe("MediaElementWrapper", () => {
       const playHandler = playCall![1];
       
       // Set emitEvents.play to false
-      (wrapper as any).emitEvents[CustomEventNames.play] = false;
+      (wrapper as any).emitEvents[MediaEvent.play] = false;
       
       // Call handler
       playHandler();
@@ -317,14 +317,14 @@ describe("MediaElementWrapper", () => {
       const pauseHandler = pauseCall![1];
       
       // Make sure emitEvents.pause is true
-      (wrapper as any).emitEvents[CustomEventNames.pause] = true;
+      (wrapper as any).emitEvents[MediaEvent.pause] = true;
       
       // Call the handler
       pauseHandler();
       
       expect(dispatchEventSpy).toHaveBeenCalledWith(
         expect.objectContaining({
-          type: CustomEventNames.pause
+          type: MediaEvent.pause
         })
       );
     });
@@ -338,7 +338,7 @@ describe("MediaElementWrapper", () => {
       const pauseHandler = pauseCall![1];
       
       // Set emitEvents.pause to false
-      (wrapper as any).emitEvents[CustomEventNames.pause] = false;
+      (wrapper as any).emitEvents[MediaEvent.pause] = false;
       
       // Call handler
       pauseHandler();
@@ -363,14 +363,14 @@ describe("MediaElementWrapper", () => {
       const ratechangeHandler = ratechangeCall![1];
       
       // Make sure emitEvents.ratechange is true
-      (wrapper as any).emitEvents[CustomEventNames.ratechange] = true;
+      (wrapper as any).emitEvents[MediaEvent.ratechange] = true;
       
       // Call handler
       ratechangeHandler(mockEvent);
       
       expect(dispatchEventSpy).toHaveBeenCalledWith(
         expect.objectContaining({
-          type: CustomEventNames.ratechange,
+          type: MediaEvent.ratechange,
           detail: { playbackRate: 1.5 }
         })
       );
@@ -392,7 +392,7 @@ describe("MediaElementWrapper", () => {
       const ratechangeHandler = ratechangeCall![1];
       
       // Set emitEvents.ratechange to false
-      (wrapper as any).emitEvents[CustomEventNames.ratechange] = false;
+      (wrapper as any).emitEvents[MediaEvent.ratechange] = false;
       
       // Call handler
       ratechangeHandler(mockEvent);

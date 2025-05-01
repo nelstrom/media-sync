@@ -1,4 +1,4 @@
-import { CustomEventNames, SEEK_DEBOUNCE_DELAY } from "./constants";
+import { MediaEvent, SEEK_DEBOUNCE_DELAY } from "./constants";
 import { Logger, debounce } from "./utils";
 import { SuppressibleEventName } from "./types";
 
@@ -14,10 +14,10 @@ export class MediaElementWrapperImpl extends EventTarget {
   protected audioContext?: AudioContext;
   private gainNode?: GainNode;
   private emitEvents: Record<string, boolean> = {
-    [CustomEventNames.pause]: true,
-    [CustomEventNames.play]: true,
-    [CustomEventNames.ratechange]: true,
-    [CustomEventNames.seeking]: true,
+    [MediaEvent.pause]: true,
+    [MediaEvent.play]: true,
+    [MediaEvent.ratechange]: true,
+    [MediaEvent.seeking]: true,
   };
 
   constructor(
@@ -48,9 +48,9 @@ export class MediaElementWrapperImpl extends EventTarget {
   private setupEventDispatchers(): void {
     // Debounce seeking events to prevent rapid-fire events
     const debouncedSeekingHandler = debounce((currentTime: number) => {
-      if (this.emitEvents[CustomEventNames.seeking]) {
+      if (this.emitEvents[MediaEvent.seeking]) {
         this.dispatchEvent(
-          new CustomEvent(CustomEventNames.seeking, {
+          new CustomEvent(MediaEvent.seeking, {
             detail: { currentTime },
           })
         );
@@ -75,9 +75,9 @@ export class MediaElementWrapperImpl extends EventTarget {
         (e?.target as HTMLMediaElement)?.playbackRate ??
         this._element.playbackRate;
       
-      if (this.emitEvents[CustomEventNames.ratechange]) {
+      if (this.emitEvents[MediaEvent.ratechange]) {
         this.dispatchEvent(
-          new CustomEvent(CustomEventNames.ratechange, {
+          new CustomEvent(MediaEvent.ratechange, {
             detail: { playbackRate },
           })
         );
@@ -87,8 +87,8 @@ export class MediaElementWrapperImpl extends EventTarget {
     });
 
     this._element.addEventListener("play", () => {
-      if (this.emitEvents[CustomEventNames.play]) {
-        this.dispatchEvent(new CustomEvent(CustomEventNames.play));
+      if (this.emitEvents[MediaEvent.play]) {
+        this.dispatchEvent(new CustomEvent(MediaEvent.play));
       } else {
         Logger.debug(`(Not emitting a play event from ${this.id})`);
       }
@@ -96,8 +96,8 @@ export class MediaElementWrapperImpl extends EventTarget {
 
     // Listen for pause events and dispatch appropriate custom events
     this._element.addEventListener("pause", () => {
-      if (this.emitEvents[CustomEventNames.pause]) {
-        this.dispatchEvent(new CustomEvent(CustomEventNames.pause));
+      if (this.emitEvents[MediaEvent.pause]) {
+        this.dispatchEvent(new CustomEvent(MediaEvent.pause));
       } else {
         Logger.debug(`(Not emitting a pause event from ${this.id})`);
       }

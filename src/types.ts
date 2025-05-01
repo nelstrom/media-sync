@@ -1,14 +1,14 @@
 
-import { CustomEventNames } from "./constants";
+import { MediaEvent } from "./constants";
 
 /**
  * Type for events that can be suppressed
  */
 export type SuppressibleEventName = 
-  | (typeof CustomEventNames)["pause"] 
-  | (typeof CustomEventNames)["play"]
-  | (typeof CustomEventNames)["ratechange"]
-  | (typeof CustomEventNames)["seeking"];
+  | (typeof MediaEvent)["pause"] 
+  | (typeof MediaEvent)["play"]
+  | (typeof MediaEvent)["ratechange"]
+  | (typeof MediaEvent)["seeking"];
 
 /**
  * Media element wrapper interface
