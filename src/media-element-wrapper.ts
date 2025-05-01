@@ -16,6 +16,7 @@ export class MediaElementWrapperImpl extends EventTarget {
   private gainNode?: GainNode;
   private emitEvents: Record<string, boolean> = {
     [CustomEventNames.pause]: true,
+    [CustomEventNames.play]: true,
   };
 
   constructor(
@@ -166,10 +167,10 @@ export class MediaElementWrapperImpl extends EventTarget {
     };
 
     this._element.addEventListener("play", () => {
-      if (this.isUserInitiated) {
-        this.dispatchEvent(new CustomEvent(CustomEventNames.user.play));
+      if (this.emitEvents[CustomEventNames.play]) {
+        this.dispatchEvent(new CustomEvent(CustomEventNames.play));
       } else {
-        this.dispatchEvent(new CustomEvent(CustomEventNames.programmatic.play));
+        Logger.debug(`(Not emitting a play event from ${this.id})`);
       }
     });
 

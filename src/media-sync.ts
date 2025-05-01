@@ -47,7 +47,6 @@ interface DriftCorrection extends DriftRecord {
  */
 export class MediaSync extends HTMLElement {
   private mediaElements: MediaElementWrapper[] = [];
-  private isSyncingPlay: boolean = false;
   private isSyncingSeeking: boolean = false;
   private isSyncingRate: boolean = false;
   
@@ -462,25 +461,9 @@ export class MediaSync extends HTMLElement {
         Logger.debug(`User seeked event from element ${index}`);
       });
 
-      // Handle user-initiated play events
-      wrapper.addEventListener(CustomEventNames.user.play, () => {
-        Logger.debug(`User play event from element ${index}`);
-        
-        // Skip synchronization if disabled
-        if (this._disabled) {
-          Logger.debug("Synchronization is disabled, skipping play sync");
-          return;
-        }
-        
-        // Find other media elements (not this one) to play
-        const othersToPlay = this.otherTracks(wrapper);
-        Logger.debug(`Playing ${othersToPlay.length} other media elements (excluding source element)`);
-        this.playTracks(othersToPlay);
-      });
-
-      // Handle programmatic play events
-      wrapper.addEventListener(CustomEventNames.programmatic.play, () => {
-        Logger.debug(`Programmatic play event from element ${index}`);
+      // Handle play events
+      wrapper.addEventListener(CustomEventNames.play, () => {
+        Logger.debug(`Play event from element ${index}`);
         
         // Skip synchronization if disabled
         if (this._disabled) {
@@ -650,16 +633,11 @@ export class MediaSync extends HTMLElement {
       return;
     }
 
-    if (this.isSyncingPlay) {
-      Logger.debug("playTracks called while syncing. Skipping...");
-      return;
-    }
-
     try {
       Logger.debug(`MediaSync: Playing ${mediaElements.length} media elements`);
-
-      // Set flag to prevent infinite loops from programmatic play events
-      this.isSyncingPlay = true;
+      
+      // Suppress play events to prevent infinite looping
+      this.suppressEvents(CustomEventNames.play);
       
       // When using Web Audio API, ensure the audio context is resumed
       if (this.useWebAudio && this.audioContext && this.audioContext.state === 'suspended') {
@@ -680,12 +658,14 @@ export class MediaSync extends HTMLElement {
         this.startDriftCorrection();
       }
 
-      // Reset flag after all play operations are complete
+      // Re-enable events after all play operations are complete
       setTimeout(() => {
-        this.isSyncingPlay = false;
+        this.enableEvents(CustomEventNames.play);
       }, 0);
     } catch (error) {
       Logger.error("Error playing media elements:", error);
+      // Make sure to re-enable events even if there's an error
+      this.enableEvents(CustomEventNames.play);
     }
   }
 

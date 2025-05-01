@@ -258,7 +258,7 @@ describe("MediaElementWrapper", () => {
       );
     });
     
-    it("should dispatch user play event", () => {
+    it("should dispatch play event when emitEvents.play is true", () => {
       // Get the play listener and call it
       const playCall = addEventListenerMock.mock.calls.find(
         call => call[0] === "play"
@@ -266,38 +266,35 @@ describe("MediaElementWrapper", () => {
       expect(playCall).toBeDefined();
       const playHandler = playCall![1];
       
-      // Call with isUserInitiated = true (default state)
+      // Make sure emitEvents.play is true
+      (wrapper as any).emitEvents[CustomEventNames.play] = true;
+      
+      // Call the handler
       playHandler();
       
       expect(dispatchEventSpy).toHaveBeenCalledWith(
         expect.objectContaining({
-          type: CustomEventNames.user.play
+          type: CustomEventNames.play
         })
       );
     });
     
-    it("should dispatch programmatic play event", () => {
-      // Simulate programmatic play
-      // This would normally be set by wrapper.play() but we'll fake it
+    it("should not dispatch play event when emitEvents.play is false", () => {
+      // Get the play listener and call it
       const playCall = addEventListenerMock.mock.calls.find(
         call => call[0] === "play"
       );
       expect(playCall).toBeDefined();
       const playHandler = playCall![1];
       
-      // Set isUserInitiated to false manually for the test
-      // We're accessing a private property, which is generally not good
-      // practice but necessary for testing in this case
-      (wrapper as any).isUserInitiated = false;
+      // Set emitEvents.play to false
+      (wrapper as any).emitEvents[CustomEventNames.play] = false;
       
       // Call handler
       playHandler();
       
-      expect(dispatchEventSpy).toHaveBeenCalledWith(
-        expect.objectContaining({
-          type: CustomEventNames.programmatic.play
-        })
-      );
+      // Should not dispatch event
+      expect(dispatchEventSpy).not.toHaveBeenCalled();
     });
     
     it("should dispatch pause event when emitEvents.pause is true", () => {
@@ -309,7 +306,7 @@ describe("MediaElementWrapper", () => {
       const pauseHandler = pauseCall![1];
       
       // Make sure emitEvents.pause is true
-      (wrapper as any).emitEvents = { pause: true };
+      (wrapper as any).emitEvents[CustomEventNames.pause] = true;
       
       // Call the handler
       pauseHandler();
@@ -330,7 +327,7 @@ describe("MediaElementWrapper", () => {
       const pauseHandler = pauseCall![1];
       
       // Set emitEvents.pause to false
-      (wrapper as any).emitEvents = { pause: false };
+      (wrapper as any).emitEvents[CustomEventNames.pause] = false;
       
       // Call handler
       pauseHandler();

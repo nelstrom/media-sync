@@ -75,8 +75,8 @@ describe("MediaSync", () => {
       const wrapper1PlaySpy = vi.spyOn(wrapper1, 'play');
       const wrapper2PlaySpy = vi.spyOn(wrapper2, 'play');
       
-      // Simulate a user play event from wrapper1
-      wrapper1.dispatchEvent(new CustomEvent(CustomEventNames.user.play));
+      // Simulate a play event from wrapper1
+      wrapper1.dispatchEvent(new CustomEvent(CustomEventNames.play));
       
       expect(wrapper1PlaySpy).not.toHaveBeenCalled();
       expect(wrapper2PlaySpy).toHaveBeenCalled();
@@ -144,13 +144,32 @@ describe("MediaSync", () => {
       // Spy on wrapper play methods
       const wrapper1PlaySpy = vi.spyOn(wrapper1, 'play');
       const wrapper2PlaySpy = vi.spyOn(wrapper2, 'play');
+      const wrapper1SuppressSpy = vi.spyOn(wrapper1, 'suppressEventType');
+      const wrapper2SuppressSpy = vi.spyOn(wrapper2, 'suppressEventType');
+      const wrapper1EnableSpy = vi.spyOn(wrapper1, 'enableEventType');
+      const wrapper2EnableSpy = vi.spyOn(wrapper2, 'enableEventType');
       
       // Call the MediaSync play method
       await mediaSyncElement.play();
       
+      // Expect event suppression to be called for both wrappers
+      expect(wrapper1SuppressSpy).toHaveBeenCalledWith(CustomEventNames.play);
+      expect(wrapper2SuppressSpy).toHaveBeenCalledWith(CustomEventNames.play);
+      
       // Expect both wrappers' play methods to be called
       expect(wrapper1PlaySpy).toHaveBeenCalled();
       expect(wrapper2PlaySpy).toHaveBeenCalled();
+      
+      // Expect event re-enabling to NOT be called yet (due to setTimeout)
+      expect(wrapper1EnableSpy).not.toHaveBeenCalled();
+      expect(wrapper2EnableSpy).not.toHaveBeenCalled();
+      
+      // Run all timers to trigger the setTimeout callback
+      vi.runAllTimers();
+      
+      // Now expect event re-enabling to have been called
+      expect(wrapper1EnableSpy).toHaveBeenCalledWith(CustomEventNames.play);
+      expect(wrapper2EnableSpy).toHaveBeenCalledWith(CustomEventNames.play);
     });
     
     it("should pause all media elements when the MediaSync pause() is called", () => {
