@@ -1,6 +1,6 @@
 import { CustomEventNames } from "./constants";
 import { MediaElementWrapperImpl } from "./media-element-wrapper";
-import { MediaElementWrapper } from "./types";
+import { MediaElementWrapper, SuppressibleEventName } from "./types";
 import { Logger, debounce } from "./utils";
 
 // Debounce delay for seeking events (in milliseconds)
@@ -702,6 +702,22 @@ export class MediaSync extends HTMLElement {
     this.pauseTracks();
   }
 
+  /**
+   * Suppress events of the specified type on all media elements
+   * @param eventType The event type to suppress
+   */
+  private suppressEvents(eventType: SuppressibleEventName): void {
+    this.mediaElements.forEach((wrapper) => wrapper.suppressEventType(eventType));
+  }
+
+  /**
+   * Enable events of the specified type on all media elements
+   * @param eventType The event type to enable
+   */
+  private enableEvents(eventType: SuppressibleEventName): void {
+    this.mediaElements.forEach((wrapper) => wrapper.enableEventType(eventType));
+  }
+
   private pauseTracks(mediaElements = this.mediaElements): void {
     if (mediaElements.length === 0) {
       Logger.error("No media elements available to pause");
@@ -711,7 +727,7 @@ export class MediaSync extends HTMLElement {
     Logger.debug("MediaSync: Pausing all media elements");
 
     // Suppress pause events to prevent infinite looping
-    this.mediaElements.forEach((wrapper) => wrapper.suppressEventType('pause'))
+    this.suppressEvents(CustomEventNames.pause);
 
     // Pause all media elements - this is synchronous
     mediaElements.forEach((media) => media.pause());
@@ -722,7 +738,7 @@ export class MediaSync extends HTMLElement {
 
     // Use setTimeout to ensure this runs after the current execution cycle
     setTimeout(() => {
-      this.mediaElements.forEach((wrapper) => wrapper.enableEventType('pause'))
+      this.enableEvents(CustomEventNames.pause);
     }, 0);
   }
   

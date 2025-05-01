@@ -1,4 +1,11 @@
 
+import { CustomEventNames } from "./constants";
+
+/**
+ * Type for events that can be suppressed
+ */
+export type SuppressibleEventName = (typeof CustomEventNames)["pause"];
+
 /**
  * Media element wrapper interface
  */
@@ -51,12 +58,12 @@ export interface MediaElementWrapper {
   /**
    * Suppress events of the specified type from being emitted
    */
-  suppressEventType(name: 'pause'): void;
+  suppressEventType(name: SuppressibleEventName): void;
 
   /**
    * Enable events of the specified type to be emitted
    */
-  enableEventType(name: 'pause'): void;
+  enableEventType(name: SuppressibleEventName): void;
   
   /**
    * Check if the media is currently playing

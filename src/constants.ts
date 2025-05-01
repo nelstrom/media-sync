@@ -1,6 +1,6 @@
 
 export const CustomEventNames = {
-  pause: "media-sync:pause",
+  pause: "media-sync:pause",  
   programmatic: {
     seeking: "media-sync:programmatic:seeking",
     seeked: "media-sync:programmatic:seeked",
@@ -15,4 +15,4 @@ export const CustomEventNames = {
     pause: "media-sync:user:pause",
     ratechange: "media-sync:user:ratechange"
   },
-};
+} as const;

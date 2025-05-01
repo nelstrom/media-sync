@@ -1,5 +1,6 @@
 import { CustomEventNames } from "./constants";
 import { Logger } from "./utils";
+import { SuppressibleEventName } from "./types";
 
 /**
  * Class that wraps and manages an individual HTML media element
@@ -13,8 +14,8 @@ export class MediaElementWrapperImpl extends EventTarget {
   private isUserInitiated: boolean = true;
   protected audioContext?: AudioContext;
   private gainNode?: GainNode;
-  private emitEvents = {
-    pause: true,
+  private emitEvents: Record<string, boolean> = {
+    [CustomEventNames.pause]: true,
   };
 
   constructor(
@@ -174,7 +175,7 @@ export class MediaElementWrapperImpl extends EventTarget {
 
     // Listen for pause events and dispatch appropriate custom events
     this._element.addEventListener("pause", () => {
-      if (this.emitEvents.pause) {
+      if (this.emitEvents[CustomEventNames.pause]) {
         this.dispatchEvent(new CustomEvent(CustomEventNames.pause));
       } else {
         Logger.debug(`(Not emitting a pause event from ${this.id})`);
@@ -182,12 +183,12 @@ export class MediaElementWrapperImpl extends EventTarget {
     });
   }
 
-  public suppressEventType(name: "pause") {
+  public suppressEventType(name: SuppressibleEventName) {
     Logger.debug(`suppressing ${name} events for ${this.id}`);
     this.emitEvents[name] = false;
   }
 
-  public enableEventType(name: "pause") {
+  public enableEventType(name: SuppressibleEventName) {
     Logger.debug(`enabling ${name} events for ${this.id}`);
     this.emitEvents[name] = true;
   }

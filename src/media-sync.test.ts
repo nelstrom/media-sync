@@ -86,8 +86,8 @@ describe("MediaSync", () => {
       const wrapper1PauseSpy = vi.spyOn(wrapper1, 'pause');
       const wrapper2PauseSpy = vi.spyOn(wrapper2, 'pause');
       
-      // Simulate a user pause event from wrapper1
-      wrapper1.dispatchEvent(new CustomEvent(CustomEventNames.user.pause));
+      // Simulate a pause event from wrapper1
+      wrapper1.dispatchEvent(new CustomEvent(CustomEventNames.pause));
       
       expect(wrapper1PauseSpy).not.toHaveBeenCalled();
       expect(wrapper2PauseSpy).toHaveBeenCalled();
@@ -157,13 +157,32 @@ describe("MediaSync", () => {
       // Spy on wrapper pause methods
       const wrapper1PauseSpy = vi.spyOn(wrapper1, 'pause');
       const wrapper2PauseSpy = vi.spyOn(wrapper2, 'pause');
+      const wrapper1SuppressSpy = vi.spyOn(wrapper1, 'suppressEventType');
+      const wrapper2SuppressSpy = vi.spyOn(wrapper2, 'suppressEventType');
+      const wrapper1EnableSpy = vi.spyOn(wrapper1, 'enableEventType');
+      const wrapper2EnableSpy = vi.spyOn(wrapper2, 'enableEventType');
       
       // Call the MediaSync pause method
       mediaSyncElement.pause();
       
+      // Expect event suppression to be called for both wrappers
+      expect(wrapper1SuppressSpy).toHaveBeenCalledWith(CustomEventNames.pause);
+      expect(wrapper2SuppressSpy).toHaveBeenCalledWith(CustomEventNames.pause);
+      
       // Expect both wrappers' pause methods to be called
       expect(wrapper1PauseSpy).toHaveBeenCalled();
       expect(wrapper2PauseSpy).toHaveBeenCalled();
+      
+      // Expect event re-enabling to NOT be called yet
+      expect(wrapper1EnableSpy).not.toHaveBeenCalled();
+      expect(wrapper2EnableSpy).not.toHaveBeenCalled();
+      
+      // Run the timer to trigger the setTimeout callback
+      vi.runAllTimers();
+      
+      // Now expect event re-enabling to have been called
+      expect(wrapper1EnableSpy).toHaveBeenCalledWith(CustomEventNames.pause);
+      expect(wrapper2EnableSpy).toHaveBeenCalledWith(CustomEventNames.pause);
     });
 
     it("should get the currentTime from the main media element", () => {

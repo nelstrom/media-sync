@@ -300,7 +300,7 @@ describe("MediaElementWrapper", () => {
       );
     });
     
-    it("should dispatch user pause event", () => {
+    it("should dispatch pause event when emitEvents.pause is true", () => {
       // Get the pause listener and call it
       const pauseCall = addEventListenerMock.mock.calls.find(
         call => call[0] === "pause"
@@ -308,35 +308,35 @@ describe("MediaElementWrapper", () => {
       expect(pauseCall).toBeDefined();
       const pauseHandler = pauseCall![1];
       
-      // Call with isUserInitiated = true (default state)
+      // Make sure emitEvents.pause is true
+      (wrapper as any).emitEvents = { pause: true };
+      
+      // Call the handler
       pauseHandler();
       
       expect(dispatchEventSpy).toHaveBeenCalledWith(
         expect.objectContaining({
-          type: CustomEventNames.user.pause
+          type: CustomEventNames.pause
         })
       );
     });
     
-    it("should dispatch programmatic pause event", () => {
-      // Simulate programmatic pause
+    it("should not dispatch pause event when emitEvents.pause is false", () => {
+      // Get the pause listener and call it
       const pauseCall = addEventListenerMock.mock.calls.find(
         call => call[0] === "pause"
       );
       expect(pauseCall).toBeDefined();
       const pauseHandler = pauseCall![1];
       
-      // Set isUserInitiated to false manually for the test
-      (wrapper as any).isUserInitiated = false;
+      // Set emitEvents.pause to false
+      (wrapper as any).emitEvents = { pause: false };
       
       // Call handler
       pauseHandler();
       
-      expect(dispatchEventSpy).toHaveBeenCalledWith(
-        expect.objectContaining({
-          type: CustomEventNames.programmatic.pause
-        })
-      );
+      // Should not dispatch event
+      expect(dispatchEventSpy).not.toHaveBeenCalled();
     });
     
     it("should dispatch user ratechange event", () => {
