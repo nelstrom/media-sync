@@ -8,3 +8,5 @@ export const MediaEvent = {
   ratechange: "media-sync:ratechange",
   seeking: "media-sync:seeking",
 } as const;
+
+export type MediaEventName = (typeof MediaEvent)[keyof typeof MediaEvent];

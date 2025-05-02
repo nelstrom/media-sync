@@ -1,6 +1,5 @@
-import { MediaEvent, SEEK_DEBOUNCE_DELAY } from "./constants";
+import { MediaEvent, SEEK_DEBOUNCE_DELAY, type MediaEventName } from "./constants";
 import { MediaElementWrapper } from "./media-element-wrapper";
-import { SuppressibleEventName } from "./types";
 import { Logger } from "./utils";
 
 // Sample every 100ms (10 samples per second)
@@ -627,7 +626,7 @@ export class MediaSync extends HTMLElement {
    * Suppress events of the specified type on all media elements
    * @param eventType The event type to suppress
    */
-  private suppressEvents(eventType: SuppressibleEventName): void {
+  private suppressEvents(eventType: MediaEventName): void {
     this.mediaElements.forEach((wrapper) => wrapper.suppressEventType(eventType));
   }
 
@@ -635,7 +634,7 @@ export class MediaSync extends HTMLElement {
    * Enable events of the specified type on all media elements
    * @param eventType The event type to enable
    */
-  private enableEvents(eventType: SuppressibleEventName): void {
+  private enableEvents(eventType: MediaEventName): void {
     this.mediaElements.forEach((wrapper) => wrapper.enableEventType(eventType));
   }
 

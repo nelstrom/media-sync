@@ -1,6 +1,5 @@
-import { MediaEvent, SEEK_DEBOUNCE_DELAY } from "./constants";
+import { MediaEvent, SEEK_DEBOUNCE_DELAY, type MediaEventName } from "./constants";
 import { Logger, debounce } from "./utils";
-import { SuppressibleEventName } from "./types";
 
 /**
  * Class that wraps and manages an individual HTML media element
@@ -104,12 +103,12 @@ export class MediaElementWrapper extends EventTarget {
     });
   }
 
-  public suppressEventType(name: SuppressibleEventName) {
+  public suppressEventType(name: MediaEventName) {
     Logger.debug(`suppressing ${name} events for ${this.id}`);
     this.emitEvents[name] = false;
   }
 
-  public enableEventType(name: SuppressibleEventName) {
+  public enableEventType(name: MediaEventName) {
     Logger.debug(`enabling ${name} events for ${this.id}`);
     this.emitEvents[name] = true;
   }
