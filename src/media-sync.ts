@@ -552,18 +552,8 @@ export class MediaSync extends HTMLElement {
    * @param wrapperToExclude The media wrapper to exclude from the result
    */
   private otherTracks(wrapperToExclude: MediaElementWrapper): MediaElementWrapper[] {
-    // Get the underlying element from the wrapper we want to exclude
-    // We need to do this for test environments where wrapper instances might not match
-    const elementToExclude = (wrapperToExclude as any)._element;
-    
     return this.mediaElements.filter(wrapper => {
-      // Try both approaches - direct wrapper equality AND element equality
-      // This ensures it works both in production and test environments
-      const directMatch = wrapper === wrapperToExclude;
-      const elementMatch = (wrapper as any)._element === elementToExclude;
-      
-      // If either match, exclude this wrapper
-      return !directMatch && !elementMatch;
+      return wrapper !== wrapperToExclude;
     });
   }
 
