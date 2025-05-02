@@ -5,7 +5,7 @@ import { SuppressibleEventName } from "./types";
 /**
  * Class that wraps and manages an individual HTML media element
  */
-export class MediaElementWrapperImpl extends EventTarget {
+export class MediaElementWrapper extends EventTarget {
   public id: string;
   private _element: HTMLMediaElement;
   public isMain: boolean = false;

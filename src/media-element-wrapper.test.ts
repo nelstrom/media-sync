@@ -1,5 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { MediaElementWrapperImpl } from "./media-element-wrapper";
+import { MediaElementWrapper } from "./media-element-wrapper";
 import { MediaEvent } from "./constants";
 
 // Mock the Logger utility - must be before imports due to hoisting
@@ -15,7 +15,7 @@ vi.mock("./utils", async () => {
 });
 
 describe("MediaElementWrapper", () => {
-  let wrapper: MediaElementWrapperImpl;
+  let wrapper: MediaElementWrapper;
   let mediaElement: HTMLMediaElement;
   let playMock: ReturnType<typeof vi.fn>;
   let pauseMock: ReturnType<typeof vi.fn>;
@@ -68,7 +68,7 @@ describe("MediaElementWrapper", () => {
     });
     
     // Create the wrapper with our mocked media element
-    wrapper = new MediaElementWrapperImpl(mediaElement, {});
+    wrapper = new MediaElementWrapper(mediaElement, {});
   });
   
   afterEach(() => {
@@ -82,14 +82,14 @@ describe("MediaElementWrapper", () => {
     });
     
     it("should set isMain based on constructor options", () => {
-      const mainWrapper = new MediaElementWrapperImpl(mediaElement, { isMain: true });
+      const mainWrapper = new MediaElementWrapper(mediaElement, { isMain: true });
       expect(mainWrapper.isMain).toBe(true);
       
-      const nonMainWrapper = new MediaElementWrapperImpl(mediaElement, { isMain: false });
+      const nonMainWrapper = new MediaElementWrapper(mediaElement, { isMain: false });
       expect(nonMainWrapper.isMain).toBe(false);
       
       // Default should be false
-      const defaultWrapper = new MediaElementWrapperImpl(mediaElement);
+      const defaultWrapper = new MediaElementWrapper(mediaElement);
       expect(defaultWrapper.isMain).toBe(false);
     });
     

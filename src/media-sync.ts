@@ -1,6 +1,6 @@
 import { MediaEvent, SEEK_DEBOUNCE_DELAY } from "./constants";
-import { MediaElementWrapperImpl } from "./media-element-wrapper";
-import { MediaElementWrapper, SuppressibleEventName } from "./types";
+import { MediaElementWrapper } from "./media-element-wrapper";
+import { SuppressibleEventName } from "./types";
 import { Logger } from "./utils";
 
 // Sample every 100ms (10 samples per second)
@@ -364,9 +364,9 @@ export class MediaSync extends HTMLElement {
   /**
    * Initialize the media sync element
    * @param mediaElements Optional array of HTMLMediaElements to use instead of finding them in the DOM
-   * @returns Array of MediaElementWrapperImpl instances created
+   * @returns Array of MediaElementWrapper instances created
    */
-  public initialize(mediaElements?: HTMLMediaElement[]): MediaElementWrapperImpl[] {
+  public initialize(mediaElements?: HTMLMediaElement[]): MediaElementWrapper[] {
     // If no media elements are provided, find all media elements that are children of this element
     if (!mediaElements) {
       mediaElements = [...this.querySelectorAll("audio, video")] as HTMLMediaElement[];
@@ -387,12 +387,12 @@ export class MediaSync extends HTMLElement {
   private setupMediaElements(
     elements: HTMLMediaElement[],
     mainElement: HTMLMediaElement
-  ): MediaElementWrapperImpl[] {
+  ): MediaElementWrapper[] {
     // Set up all media elements first
     const wrappers = elements.map((element, index) => {
       const isMain = element === mainElement;
 
-      const wrapper = new MediaElementWrapperImpl(element, {
+      const wrapper = new MediaElementWrapper(element, {
         isMain,
       });
 
