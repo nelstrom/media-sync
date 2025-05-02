@@ -34,14 +34,6 @@ export class MediaElementWrapper extends EventTarget {
   }
 
   /**
-   * Get the underlying HTML media element (for internal use only)
-   * @internal
-   */
-  get element(): HTMLMediaElement {
-    return this._element;
-  }
-
-  /**
    * Set up custom event dispatching for the media element
    */
   private setupEventDispatchers(): void {

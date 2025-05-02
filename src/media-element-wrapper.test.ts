@@ -154,12 +154,6 @@ describe("MediaElementWrapper", () => {
     });
   });
   
-  describe("element getter", () => {
-    it("should return the underlying HTMLMediaElement", () => {
-      expect(wrapper.element).toBe(mediaElement);
-    });
-  });
-  
   describe("isPlaying and isPaused methods", () => {
     it("should return correct playing state based on media element", () => {
       // Default in our test setup is paused=false (playing)
