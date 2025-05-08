@@ -495,6 +495,23 @@ export class MediaSync extends HTMLElement {
           return;
         }
         
+        // Check if all tracks have sufficient readyState to play
+        const currentReadyState = this.readyState;
+        if (currentReadyState < 4) { // HAVE_ENOUGH_DATA
+          Logger.debug(`Media element played directly but overall readyState is ${currentReadyState}. Pausing this element.`);
+          
+          // Pause the element that tried to play
+          this.suppressEvents(MediaEvent.pause);
+          wrapper.pause();
+          
+          // Re-enable pause events
+          setTimeout(() => {
+            this.enableEvents(MediaEvent.pause);
+          }, 0);
+          
+          return;
+        }
+        
         // Find other media elements (not this one) to play
         const othersToPlay = this.otherTracks(wrapper);
         Logger.debug(`Playing ${othersToPlay.length} other media elements (excluding source element)`);

@@ -86,6 +86,24 @@ describe("MediaSync", () => {
       expect(wrapper2PlaySpy).toHaveBeenCalled();
     });
     
+    it("should pause element that tries to play when overall readyState is insufficient", () => {
+      const wrapper1PauseSpy = vi.spyOn(wrapper1, 'pause');
+      const wrapper2PlaySpy = vi.spyOn(wrapper2, 'play');
+      
+      // Set up insufficient readyState - wrapper1 is ready but wrapper2 is not
+      const wrapper1ReadyState = vi.fn().mockReturnValue(4); // HAVE_ENOUGH_DATA
+      const wrapper2ReadyState = vi.fn().mockReturnValue(2); // HAVE_CURRENT_DATA
+      vi.spyOn(wrapper1, 'readyState', 'get').mockImplementation(wrapper1ReadyState);
+      vi.spyOn(wrapper2, 'readyState', 'get').mockImplementation(wrapper2ReadyState);
+      
+      // Simulate a play event from wrapper1
+      wrapper1.dispatchEvent(new CustomEvent(MediaEvent.play));
+      
+      // Expect that wrapper1 was immediately paused and wrapper2 was not played
+      expect(wrapper1PauseSpy).toHaveBeenCalled();
+      expect(wrapper2PlaySpy).not.toHaveBeenCalled();
+    });
+    
     it("should sync pause to other elements when one element triggers pause", () => {
       const wrapper1PauseSpy = vi.spyOn(wrapper1, 'pause');
       const wrapper2PauseSpy = vi.spyOn(wrapper2, 'pause');
