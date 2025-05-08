@@ -44,6 +44,9 @@ interface DriftCorrection extends DriftRecord {
 export class MediaSync extends HTMLElement {
   private mediaElements: MediaElementWrapper[] = [];
   private isSyncingSeeking: boolean = false;
+  private lastReadyState: number = 0;
+  private isWaitingForData: boolean = false;
+  private wasPlayingBeforeWaiting: boolean = false;
   
   // Drift sampling properties
   public driftSamples: (DriftSample | DriftCorrection)[] = [];
@@ -361,6 +364,68 @@ export class MediaSync extends HTMLElement {
   }
 
   /**
+   * Handle readyState changes and dispatch appropriate events
+   */
+  private handleReadyStateChange(): void {
+    const currentReadyState = this.readyState;
+    
+    // If the overall readyState has changed, dispatch the appropriate event
+    if (currentReadyState !== this.lastReadyState) {
+      Logger.debug(`MediaSync readyState changed from ${this.lastReadyState} to ${currentReadyState}`);
+      this.lastReadyState = currentReadyState;
+      
+      // Dispatch appropriate event based on new readyState
+      switch (currentReadyState) {
+        case 0:
+          this.dispatchEvent(new CustomEvent('emptied', { 
+            bubbles: true, 
+            composed: true 
+          }));
+          break;
+        case 1:
+          this.dispatchEvent(new CustomEvent('loadedmetadata', { 
+            bubbles: true, 
+            composed: true 
+          }));
+          break;
+        case 2:
+          this.dispatchEvent(new CustomEvent('loadeddata', { 
+            bubbles: true, 
+            composed: true 
+          }));
+          break;
+        case 3:
+          this.dispatchEvent(new CustomEvent('canplay', { 
+            bubbles: true, 
+            composed: true 
+          }));
+          break;
+        case 4:
+          this.dispatchEvent(new CustomEvent('canplaythrough', { 
+            bubbles: true, 
+            composed: true 
+          }));
+          
+          // When all tracks reach HAVE_ENOUGH_DATA state, we can resume if needed
+          if (this.isWaitingForData && !this._disabled) {
+            Logger.debug('All tracks have enough data to play');
+            
+            // Resume playback if it was playing before waiting
+            if (this.wasPlayingBeforeWaiting) {
+              Logger.debug('Resuming playback after waiting');
+              this.play();
+            }
+            
+            // Clear waiting flags
+            this.isWaitingForData = false;
+            this.wasPlayingBeforeWaiting = false;
+          }
+          break;
+      }
+    }
+  }
+
+  /**
    * Initialize the media sync element
    * @param mediaElements Optional array of HTMLMediaElements to use instead of finding them in the DOM
    * @returns Array of MediaElementWrapper instances created
@@ -467,6 +532,49 @@ export class MediaSync extends HTMLElement {
         Logger.debug(`Updating playback rate to ${playbackRate} for ${othersToChange.length} other media elements (excluding source element)`);
         this.setPlaybackRateTracks(othersToChange, playbackRate);
       });
+      
+      // Add listeners for readyState-related events
+      // Each time an element's readyState changes, we need to check the overall readyState
+      wrapper.addEventListener(MediaEvent.emptied, () => {
+        this.handleReadyStateChange();
+      });
+      
+      wrapper.addEventListener(MediaEvent.loadedmetadata, () => {
+        this.handleReadyStateChange();
+      });
+      
+      wrapper.addEventListener(MediaEvent.loadeddata, () => {
+        this.handleReadyStateChange();
+      });
+      
+      wrapper.addEventListener(MediaEvent.canplay, () => {
+        this.handleReadyStateChange();
+      });
+      
+      wrapper.addEventListener(MediaEvent.canplaythrough, () => {
+        this.handleReadyStateChange();
+      });
+      
+      // Handle waiting events (when playback stops due to lack of data)
+      wrapper.addEventListener(MediaEvent.waiting, (e) => {
+        const customEvent = e as CustomEvent;
+        const wasPaused = customEvent.detail.paused;
+        Logger.debug(`Waiting event from element ${index}, paused: ${wasPaused}`);
+        
+        // Mark that we're waiting for data
+        this.isWaitingForData = true;
+        
+        // Remember if we were playing before waiting
+        if (!wasPaused) {
+          this.wasPlayingBeforeWaiting = true;
+        }
+        
+        // Forward the waiting event to listeners on the MediaSync element
+        this.dispatchEvent(new CustomEvent('waiting', {
+          bubbles: true,
+          composed: true,
+        }));
+      });
 
       if (isMain) {
         Logger.debug(`Set element ${index} as main media element`);
@@ -565,6 +673,13 @@ export class MediaSync extends HTMLElement {
 
     try {
       Logger.debug(`MediaSync: Playing ${mediaElements.length} media elements`);
+      
+      // Check if all tracks have sufficient readyState to play
+      const currentReadyState = this.readyState;
+      if (currentReadyState < 4) { // HAVE_ENOUGH_DATA
+        Logger.debug(`Cannot play yet - readyState is ${currentReadyState} but need 4 (HAVE_ENOUGH_DATA)`);
+        return;
+      }
       
       // Suppress play events to prevent infinite looping
       this.suppressEvents(MediaEvent.play);
@@ -683,6 +798,25 @@ export class MediaSync extends HTMLElement {
     
     // Use the seekTracks method to handle the seeking for all elements
     this.seekTracks(this.mediaElements, time);
+  }
+
+  /**
+   * Get the readyState of the MediaSync element
+   * Returns the minimum readyState value of all media elements
+   * 0 = HAVE_NOTHING
+   * 1 = HAVE_METADATA
+   * 2 = HAVE_CURRENT_DATA
+   * 3 = HAVE_FUTURE_DATA
+   * 4 = HAVE_ENOUGH_DATA
+   */
+  public get readyState(): number {
+    if (this.mediaElements.length === 0) {
+      Logger.debug("No media elements available to get readyState");
+      return 0;
+    }
+    
+    // Find the minimum readyState among all media elements
+    return Math.min(...this.mediaElements.map(media => media.readyState));
   }
 
   /**

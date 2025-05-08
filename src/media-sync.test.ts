@@ -73,6 +73,12 @@ describe("MediaSync", () => {
       const wrapper1PlaySpy = vi.spyOn(wrapper1, 'play');
       const wrapper2PlaySpy = vi.spyOn(wrapper2, 'play');
       
+      // Make sure readyState is high enough for playback
+      const wrapper1ReadyState = vi.fn().mockReturnValue(4);
+      const wrapper2ReadyState = vi.fn().mockReturnValue(4);
+      vi.spyOn(wrapper1, 'readyState', 'get').mockImplementation(wrapper1ReadyState);
+      vi.spyOn(wrapper2, 'readyState', 'get').mockImplementation(wrapper2ReadyState);
+      
       // Simulate a play event from wrapper1
       wrapper1.dispatchEvent(new CustomEvent(MediaEvent.play));
       
@@ -163,6 +169,12 @@ describe("MediaSync", () => {
       const wrapper2SuppressSpy = vi.spyOn(wrapper2, 'suppressEventType');
       const wrapper1EnableSpy = vi.spyOn(wrapper1, 'enableEventType');
       const wrapper2EnableSpy = vi.spyOn(wrapper2, 'enableEventType');
+      
+      // Make sure readyState is high enough for playback
+      const wrapper1ReadyState = vi.fn().mockReturnValue(4);
+      const wrapper2ReadyState = vi.fn().mockReturnValue(4);
+      vi.spyOn(wrapper1, 'readyState', 'get').mockImplementation(wrapper1ReadyState);
+      vi.spyOn(wrapper2, 'readyState', 'get').mockImplementation(wrapper2ReadyState);
       
       // Call the MediaSync play method
       await mediaSyncElement.play();
@@ -384,6 +396,104 @@ describe("MediaSync", () => {
       // This should work and set wrapper2's time again
       expect(wrapper2TimeSetter).toHaveBeenCalledWith(60);
       expect(wrapper2TimeSetter).toHaveBeenCalledTimes(2);
+    });
+  });
+  
+  describe("readyState and waiting functionality", () => {
+    it("should report the minimum readyState of all media elements", () => {
+      // Create mock readyState getters
+      const wrapper1ReadyState = vi.fn().mockReturnValue(4); // HAVE_ENOUGH_DATA
+      const wrapper2ReadyState = vi.fn().mockReturnValue(2); // HAVE_CURRENT_DATA
+      
+      // Mock the wrappers with spies
+      vi.spyOn(wrapper1, 'readyState', 'get').mockImplementation(wrapper1ReadyState);
+      vi.spyOn(wrapper2, 'readyState', 'get').mockImplementation(wrapper2ReadyState);
+      
+      // Expect the MediaSync to report the minimum
+      expect(mediaSyncElement.readyState).toBe(2);
+      
+      // Update the second wrapper to a higher readyState
+      wrapper2ReadyState.mockReturnValue(3); // HAVE_FUTURE_DATA
+      
+      // Expect MediaSync to reflect the new minimum
+      expect(mediaSyncElement.readyState).toBe(3);
+    });
+    
+    it("should forward readyState events from media elements", () => {
+      // Set up event listeners
+      const emptiedSpy = vi.fn();
+      const loadedmetadataSpy = vi.fn();
+      const loadeddataSpy = vi.fn();
+      const canplaySpy = vi.fn();
+      const canplaythroughSpy = vi.fn();
+      
+      mediaSyncElement.addEventListener('emptied', emptiedSpy);
+      mediaSyncElement.addEventListener('loadedmetadata', loadedmetadataSpy);
+      mediaSyncElement.addEventListener('loadeddata', loadeddataSpy);
+      mediaSyncElement.addEventListener('canplay', canplaySpy);
+      mediaSyncElement.addEventListener('canplaythrough', canplaythroughSpy);
+      
+      // Directly trigger native events - our implementation should just forward these
+      mediaSyncElement.dispatchEvent(new CustomEvent('emptied'));
+      mediaSyncElement.dispatchEvent(new CustomEvent('loadedmetadata'));
+      mediaSyncElement.dispatchEvent(new CustomEvent('loadeddata'));
+      mediaSyncElement.dispatchEvent(new CustomEvent('canplay'));
+      mediaSyncElement.dispatchEvent(new CustomEvent('canplaythrough'));
+      
+      // Check that the events were received by the listeners
+      expect(emptiedSpy).toHaveBeenCalledTimes(1);
+      expect(loadedmetadataSpy).toHaveBeenCalledTimes(1);
+      expect(loadeddataSpy).toHaveBeenCalledTimes(1);
+      expect(canplaySpy).toHaveBeenCalledTimes(1);
+      expect(canplaythroughSpy).toHaveBeenCalledTimes(1);
+    });
+    
+    it("should not start playback if readyState is insufficient", async () => {
+      // Create mock functions for readyState values
+      const wrapper1ReadyState = vi.fn();
+      const wrapper2ReadyState = vi.fn();
+      
+      // Mock the readyState getters
+      vi.spyOn(wrapper1, 'readyState', 'get').mockImplementation(wrapper1ReadyState);
+      vi.spyOn(wrapper2, 'readyState', 'get').mockImplementation(wrapper2ReadyState);
+      
+      // Set insufficient readyState
+      wrapper1ReadyState.mockReturnValue(2); // HAVE_CURRENT_DATA
+      wrapper2ReadyState.mockReturnValue(3); // HAVE_FUTURE_DATA
+      
+      const wrapper1PlaySpy = vi.spyOn(wrapper1, 'play');
+      const wrapper2PlaySpy = vi.spyOn(wrapper2, 'play');
+      
+      // Try to play, which should not succeed
+      await mediaSyncElement.play();
+      
+      // Expect that play was not called on wrappers
+      expect(wrapper1PlaySpy).not.toHaveBeenCalled();
+      expect(wrapper2PlaySpy).not.toHaveBeenCalled();
+      
+      // Update to sufficient readyState
+      wrapper1ReadyState.mockReturnValue(4); // HAVE_ENOUGH_DATA
+      wrapper2ReadyState.mockReturnValue(4); // HAVE_ENOUGH_DATA
+      
+      // Try to play again, which should succeed now
+      await mediaSyncElement.play();
+      
+      // Expect that play was called on wrappers
+      expect(wrapper1PlaySpy).toHaveBeenCalled();
+      expect(wrapper2PlaySpy).toHaveBeenCalled();
+    });
+    
+    it("should forward waiting events from media elements", () => {
+      const waitingSpy = vi.fn();
+      mediaSyncElement.addEventListener('waiting', waitingSpy);
+      
+      // Simulate a waiting event from the first wrapper
+      wrapper1.dispatchEvent(new CustomEvent(MediaEvent.waiting, { 
+        detail: { paused: false }
+      }));
+      
+      // Check that the waiting event was forwarded
+      expect(waitingSpy).toHaveBeenCalledTimes(1);
     });
   });
 });

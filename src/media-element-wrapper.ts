@@ -93,6 +93,35 @@ export class MediaElementWrapper extends EventTarget {
         Logger.debug(`(Not emitting a pause event from ${this.id})`);
       }
     });
+    
+    // Add listeners for readyState-related events
+    // These events don't need to be suppressed, so we always emit them
+    this._element.addEventListener("emptied", () => {
+      this.dispatchEvent(new Event(MediaEvent.emptied));
+    });
+    
+    this._element.addEventListener("loadedmetadata", () => {
+      this.dispatchEvent(new Event(MediaEvent.loadedmetadata));
+    });
+    
+    this._element.addEventListener("loadeddata", () => {
+      this.dispatchEvent(new Event(MediaEvent.loadeddata));
+    });
+    
+    this._element.addEventListener("canplay", () => {
+      this.dispatchEvent(new Event(MediaEvent.canplay));
+    });
+    
+    this._element.addEventListener("canplaythrough", () => {
+      this.dispatchEvent(new Event(MediaEvent.canplaythrough));
+    });
+    
+    // Waiting events are important for knowing when playback has stopped due to buffering
+    this._element.addEventListener("waiting", () => {
+      this.dispatchEvent(new CustomEvent(MediaEvent.waiting, {
+        detail: { paused: this._element.paused }
+      }));
+    });
   }
 
   public suppressEventType(name: MediaEventName) {
@@ -168,6 +197,18 @@ export class MediaElementWrapper extends EventTarget {
    */
   public get duration(): number {
     return this._element?.duration || 0;
+  }
+
+  /**
+   * Get the readyState of the media element
+   * 0 = HAVE_NOTHING
+   * 1 = HAVE_METADATA
+   * 2 = HAVE_CURRENT_DATA
+   * 3 = HAVE_FUTURE_DATA
+   * 4 = HAVE_ENOUGH_DATA
+   */
+  public get readyState(): number {
+    return this._element?.readyState || 0;
   }
 
   /**
