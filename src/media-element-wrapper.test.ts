@@ -154,11 +154,10 @@ describe("MediaElementWrapper", () => {
     });
   });
   
-  describe("isPlaying and isPaused methods", () => {
-    it("should return correct playing state based on media element", () => {
+  describe("paused getter", () => {
+    it("should return correct paused state based on media element", () => {
       // Default in our test setup is paused=false (playing)
-      expect(wrapper.isPlaying()).toBe(true);
-      expect(wrapper.isPaused()).toBe(false);
+      expect(wrapper.paused).toBe(false);
       
       // Now set to paused
       Object.defineProperty(mediaElement, 'paused', {
@@ -167,8 +166,7 @@ describe("MediaElementWrapper", () => {
         writable: true
       });
       
-      expect(wrapper.isPlaying()).toBe(false);
-      expect(wrapper.isPaused()).toBe(true);
+      expect(wrapper.paused).toBe(true);
     });
   });
   

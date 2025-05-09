@@ -131,7 +131,7 @@ export class MediaSync extends HTMLElement {
    * Check if any media element is currently playing
    */
   private isAnyMediaPlaying(): boolean {
-    return this.mediaElements.some(media => media.isPlaying());
+    return this.mediaElements.some(media => !media.paused);
   }
   
   /**
@@ -257,7 +257,7 @@ export class MediaSync extends HTMLElement {
     const mainTime = mainElement.currentTime;
     
     // Skip if main element is not playing
-    if (mainElement.isPaused()) {
+    if (mainElement.paused) {
       return;
     }
     
@@ -328,7 +328,7 @@ export class MediaSync extends HTMLElement {
     const mainTime = mainElement.currentTime;
     
     // Skip correction if main element is not playing
-    if (mainElement.isPaused()) {
+    if (mainElement.paused) {
       return;
     }
     
@@ -651,7 +651,7 @@ export class MediaSync extends HTMLElement {
       this.enableEvents(MediaEvent.seeking);
       
       // If all elements are playing after seeking, restart drift sampling and correction
-      const allPlaying = this.mediaElements.every(media => media.isPlaying());
+      const allPlaying = this.mediaElements.every(media => !media.paused);
       if (allPlaying) {
         this.startDriftSampling();
         this.startDriftCorrection();
@@ -714,7 +714,7 @@ export class MediaSync extends HTMLElement {
       await Promise.all(playPromises);
       
       // Start drift sampling and correction if all tracks are playing
-      const allPlaying = this.mediaElements.every(media => media.isPlaying());
+      const allPlaying = this.mediaElements.every(media => !media.paused);
       if (allPlaying) {
         this.startDriftSampling();
         this.startDriftCorrection();
@@ -836,6 +836,26 @@ export class MediaSync extends HTMLElement {
     return Math.min(...this.mediaElements.map(media => media.readyState));
   }
 
+  /**
+   * Get the paused state of the media sync
+   * Returns true if the main element is paused
+   */
+  public get paused(): boolean {
+    if (this.mediaElements.length === 0) {
+      Logger.error("No media elements available to get paused state");
+      return true;
+    }
+    
+    // Return the paused state of the first (main) media element
+    const mainElement = this.mediaElements.find(media => media.isMain);
+    
+    if (mainElement) {
+      return mainElement.paused;
+    }
+    
+    return this.mediaElements[0].paused;
+  }
+  
   /**
    * Get the playback rate from the main media element
    */

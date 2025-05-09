@@ -148,16 +148,9 @@ export class MediaElementWrapper extends EventTarget {
   }
 
   /**
-   * Check if the media is currently playing
-   */
-  public isPlaying(): boolean {
-    return !this._element.paused;
-  }
-
-  /**
    * Check if the media is currently paused
    */
-  public isPaused(): boolean {
+  public get paused(): boolean {
     return this._element.paused;
   }
 
