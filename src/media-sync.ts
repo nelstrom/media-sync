@@ -46,7 +46,6 @@ export class MediaSync extends HTMLElement {
   private isSyncingSeeking: boolean = false;
   private lastReadyState: number = 0;
   private isWaitingForData: boolean = false;
-  private wasPlayingBeforeWaiting: boolean = false;
   
   // Drift sampling properties
   public driftSamples: (DriftSample | DriftCorrection)[] = [];
@@ -410,15 +409,14 @@ export class MediaSync extends HTMLElement {
           if (this.isWaitingForData && !this._disabled) {
             Logger.debug('All tracks have enough data to play');
             
-            // Resume playback if it was playing before waiting
-            if (this.wasPlayingBeforeWaiting) {
+            // Resume playback if not currently paused
+            if (!this.paused) {
               Logger.debug('Resuming playback after waiting');
               this.play();
             }
             
-            // Clear waiting flags
+            // Clear waiting flag
             this.isWaitingForData = false;
-            this.wasPlayingBeforeWaiting = false;
           }
           break;
       }
@@ -573,18 +571,11 @@ export class MediaSync extends HTMLElement {
       });
       
       // Handle waiting events (when playback stops due to lack of data)
-      wrapper.addEventListener(MediaEvent.waiting, (e) => {
-        const customEvent = e as CustomEvent;
-        const wasPaused = customEvent.detail.paused;
-        Logger.debug(`Waiting event from element ${index}, paused: ${wasPaused}`);
+      wrapper.addEventListener(MediaEvent.waiting, () => {
+        Logger.debug(`Waiting event from element ${index}`);
         
         // Mark that we're waiting for data
         this.isWaitingForData = true;
-        
-        // Remember if we were playing before waiting
-        if (!wasPaused) {
-          this.wasPlayingBeforeWaiting = true;
-        }
         
         // Forward the waiting event to listeners on the MediaSync element
         this.dispatchEvent(new CustomEvent('waiting', {

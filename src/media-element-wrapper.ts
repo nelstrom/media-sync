@@ -118,9 +118,7 @@ export class MediaElementWrapper extends EventTarget {
     
     // Waiting events are important for knowing when playback has stopped due to buffering
     this._element.addEventListener("waiting", () => {
-      this.dispatchEvent(new CustomEvent(MediaEvent.waiting, {
-        detail: { paused: this._element.paused }
-      }));
+      this.dispatchEvent(new CustomEvent(MediaEvent.waiting));
     });
   }
 
