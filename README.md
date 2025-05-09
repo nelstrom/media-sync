@@ -44,11 +44,10 @@ The `<media-sync>` element works on the assumption that all provided tracks have
 - [X] refactor tests: media-sync test should test integration between media-sync and media-element-wrapper (without interacting with the MediaElements themselves). media-element-wrapper test should test integration between the wrapper and the media-element itself.
 - [X] replace `isSyncing{Play,Pause,Sync}` in media-sync with equivalent in media-element-wrapper. When syncing one media-element, media-sync would set other elements into a state where they don't emit events, until the sync is complete
 - [ ] add a boolean loop attribute/property to `media-sync` (mirror this against the main media element, and prevent non-main media elements from having loop enabled)
-- [ ] add a readyState property (getter only) for media-sync. It should do `Math.min(mediaElements.map(e => e.readyState))`
+- [X] add a readyState property (getter only) for media-sync. It should do `Math.min(mediaElements.map(e => e.readyState))`
 - [ ] in Safari, experiment with using `mediaGroup`: https://developer.mozilla.org/en-US/docs/Web/API/HTMLMediaElement/mediaGroup - https://developer.apple.com/documentation/webkitjs/mediacontroller
-- [ ] handle loading and readiness states
+- [X] handle loading and readiness states
 - [ ] use a data- attribute to enable/disable debug logging
-- [ ] intentionally delete code in ways that don't cause the tests to fail. Ask GenAI to add tests to catch these blind-spots
 
 ### sync-video-player inspired approach
 
