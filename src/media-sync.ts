@@ -477,6 +477,13 @@ export class MediaSync extends HTMLElement {
         // Get time from event detail if available, otherwise use element's currentTime
         const seekTime = (e as CustomEvent)?.detail?.currentTime ?? element.currentTime;
         
+        // Forward the seeking event to listeners on the MediaSync element
+        this.dispatchEvent(new CustomEvent('seeking', {
+          bubbles: true,
+          composed: true,
+          detail: { currentTime: seekTime }
+        }));
+        
         // Get all tracks except the source and seek them
         const targetTracks = this.otherTracks(wrapper);
         this.seekTracks(targetTracks, seekTime);
@@ -510,6 +517,12 @@ export class MediaSync extends HTMLElement {
           return;
         }
         
+        // Forward the play event to listeners on the MediaSync element
+        this.dispatchEvent(new CustomEvent('play', {
+          bubbles: true,
+          composed: true
+        }));
+        
         // Find other media elements (not this one) to play
         const othersToPlay = this.otherTracks(wrapper);
         Logger.debug(`Playing ${othersToPlay.length} other media elements (excluding source element)`);
@@ -525,6 +538,11 @@ export class MediaSync extends HTMLElement {
           return;
         }
         
+        // Forward the pause event to listeners on the MediaSync element
+        this.dispatchEvent(new CustomEvent('pause', {
+          bubbles: true,
+          composed: true
+        }));
         
         const othersToPause = this.otherTracks(wrapper);
         this.pauseTracks(othersToPause);
@@ -541,6 +559,13 @@ export class MediaSync extends HTMLElement {
           Logger.debug("Synchronization is disabled, skipping playback rate sync");
           return;
         }
+        
+        // Forward the ratechange event to listeners on the MediaSync element
+        this.dispatchEvent(new CustomEvent('ratechange', {
+          bubbles: true,
+          composed: true,
+          detail: { playbackRate }
+        }));
         
         // Find other media elements (not this one) to change rate
         const othersToChange = this.otherTracks(wrapper);
