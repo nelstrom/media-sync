@@ -120,15 +120,21 @@
     // Import the self-registering module
     import './dist/media-sync-element.js';
 
-    const single = document.querySelector('#single');
-    single.addEventListener('pause', (e) => { console.log('$$$: pause', e) })
-    single.addEventListener('play', (e) => { console.log('$$$: play', e) })
-    single.addEventListener('seeking', (e) => { console.log('$$$: seeking', e) })
-    single.addEventListener('waiting', (e) => { console.log('$$$: waiting', { e, state: single.readyState}) })
-    single.addEventListener('progress', (e) => { console.log('$$$: progress', { e, state: single.readyState}) })
-    single.addEventListener('loadstart', (e) => { console.log('$$$: loadstart', { e, state: single.readyState}) })
-    single.addEventListener('loadeddata', (e) => { console.log('$$$: loadeddata', { e, state: single.readyState}) })
-    single.addEventListener('canplaythrough', (e) => { console.log('$$$: canplaythrough', { e, state: single.readyState}) })
+    const e1 = document.querySelector('#example-1');
+    e1.addEventListener('waiting', (e) => { console.log('$$$: waiting', { e, state: e1.readyState}) })
+    e1.addEventListener('loadstart', (e) => { console.log('$$$: loadstart', { e, state: e1.readyState}) })
+    e1.addEventListener('loadeddata', (e) => { console.log('$$$: loadeddata', { e, state: e1.readyState}) })
+    e1.addEventListener('canplay', (e) => { console.log('$$$: canplay', { e, state: e1.readyState}) })
+    e1.addEventListener('canplaythrough', (e) => { console.log('$$$: canplaythrough', { e, state: e1.readyState}) })
+    // const single = document.querySelector('#single');
+    // single.addEventListener('pause', (e) => { console.log('$$$: pause', e) })
+    // single.addEventListener('play', (e) => { console.log('$$$: play', e) })
+    // single.addEventListener('seeking', (e) => { console.log('$$$: seeking', e) })
+    // single.addEventListener('waiting', (e) => { console.log('$$$: waiting', { e, state: single.readyState}) })
+    // single.addEventListener('progress', (e) => { console.log('$$$: progress', { e, state: single.readyState}) })
+    // single.addEventListener('loadstart', (e) => { console.log('$$$: loadstart', { e, state: single.readyState}) })
+    // single.addEventListener('loadeddata', (e) => { console.log('$$$: loadeddata', { e, state: single.readyState}) })
+    // single.addEventListener('canplaythrough', (e) => { console.log('$$$: canplaythrough', { e, state: single.readyState}) })
     
     // Alternative usage: 
     // import { MediaSync } from './dist/media-sync.js';
@@ -151,7 +157,7 @@
     <p class="description">This example demonstrates syncing multiple audio tracks. Control any track to control them all.</p>
     
     <div class="demo-container">
-      <media-sync>
+      <media-sync id="example-1">
         <div>
           <div class="track-label">Melody</div>
           <audio controls>
