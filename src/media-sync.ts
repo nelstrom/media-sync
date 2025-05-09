@@ -252,8 +252,8 @@ export class MediaSync extends HTMLElement {
       return; // Need at least 2 media elements to measure drift
     }
     
-    // Find the main element
-    const mainElement = this.mediaElements.find(media => media.isMain) || this.mediaElements[0];
+    // Get the main element
+    const mainElement = this.mainElement;
     const mainTime = mainElement.currentTime;
     
     // Skip if main element is not playing
@@ -323,8 +323,8 @@ export class MediaSync extends HTMLElement {
       return;
     }
     
-    // Find the main element
-    const mainElement = this.mediaElements.find(media => media.isMain) || this.mediaElements[0];
+    // Get the main element
+    const mainElement = this.mainElement;
     const mainTime = mainElement.currentTime;
     
     // Skip correction if main element is not playing
@@ -673,6 +673,13 @@ export class MediaSync extends HTMLElement {
   }
 
   /**
+   * Get the main media element (or first one if no main element is designated)
+   */
+  private get mainElement(): MediaElementWrapper {
+    return this.mediaElements.find(media => media.isMain) || this.mediaElements[0];
+  }
+
+  /**
    * Returns all media wrappers except the specified one
    * @param wrapperToExclude The media wrapper to exclude from the result
    */
@@ -793,14 +800,7 @@ export class MediaSync extends HTMLElement {
       return 0;
     }
     
-    // Return the currentTime of the first (main) media element
-    const mainElement = this.mediaElements.find(media => media.isMain);
-    
-    if (mainElement) {
-      return mainElement.currentTime;
-    }
-    
-    return this.mediaElements[0].currentTime;
+    return this.mainElement.currentTime;
   }
   
   /**
@@ -846,14 +846,7 @@ export class MediaSync extends HTMLElement {
       return true;
     }
     
-    // Return the paused state of the first (main) media element
-    const mainElement = this.mediaElements.find(media => media.isMain);
-    
-    if (mainElement) {
-      return mainElement.paused;
-    }
-    
-    return this.mediaElements[0].paused;
+    return this.mainElement.paused;
   }
   
   /**
@@ -865,14 +858,7 @@ export class MediaSync extends HTMLElement {
       return 1.0;
     }
     
-    // Return the playbackRate of the first (main) media element
-    const mainElement = this.mediaElements.find(media => media.isMain);
-    
-    if (mainElement) {
-      return mainElement.playbackRate;
-    }
-    
-    return this.mediaElements[0].playbackRate;
+    return this.mainElement.playbackRate;
   }
   
   /**
