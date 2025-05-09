@@ -577,6 +577,9 @@ export class MediaSync extends HTMLElement {
         // Mark that we're waiting for data
         this.isWaitingForData = true;
         
+        // Pause all tracks to prevent playing while others are buffering
+        this.pause();
+        
         // Forward the waiting event to listeners on the MediaSync element
         this.dispatchEvent(new CustomEvent('waiting', {
           bubbles: true,
