@@ -2,6 +2,15 @@ import { MediaEvent, SEEK_DEBOUNCE_DELAY, type MediaEventName } from "./constant
 import { MediaElementWrapper } from "./media-element-wrapper";
 import { Logger } from "./utils";
 
+// Import HTMLMediaElement readyState constants
+const { 
+  HAVE_NOTHING,
+  HAVE_METADATA, 
+  HAVE_CURRENT_DATA, 
+  HAVE_FUTURE_DATA, 
+  HAVE_ENOUGH_DATA 
+} = HTMLMediaElement;
+
 // Sample every 100ms (10 samples per second)
 const DRIFT_SAMPLE_INTERVAL = 100;
 
@@ -44,7 +53,7 @@ interface DriftCorrection extends DriftRecord {
 export class MediaSync extends HTMLElement {
   private mediaElements: MediaElementWrapper[] = [];
   private isSyncingSeeking: boolean = false;
-  private lastReadyState: number = 0;
+  private lastReadyState: number = HAVE_NOTHING;
   private isWaitingForData: boolean = false;
   
   // Drift sampling properties
@@ -375,31 +384,31 @@ export class MediaSync extends HTMLElement {
       
       // Dispatch appropriate event based on new readyState
       switch (currentReadyState) {
-        case 0:
+        case HAVE_NOTHING:
           this.dispatchEvent(new CustomEvent('emptied', { 
             bubbles: true, 
             composed: true 
           }));
           break;
-        case 1:
+        case HAVE_METADATA:
           this.dispatchEvent(new CustomEvent('loadedmetadata', { 
             bubbles: true, 
             composed: true 
           }));
           break;
-        case 2:
+        case HAVE_CURRENT_DATA:
           this.dispatchEvent(new CustomEvent('loadeddata', { 
             bubbles: true, 
             composed: true 
           }));
           break;
-        case 3:
+        case HAVE_FUTURE_DATA:
           this.dispatchEvent(new CustomEvent('canplay', { 
             bubbles: true, 
             composed: true 
           }));
           break;
-        case 4:
+        case HAVE_ENOUGH_DATA:
           this.dispatchEvent(new CustomEvent('canplaythrough', { 
             bubbles: true, 
             composed: true 
@@ -502,7 +511,7 @@ export class MediaSync extends HTMLElement {
         
         // Check if all tracks have sufficient readyState to play
         const currentReadyState = this.readyState;
-        if (currentReadyState < 4) { // HAVE_ENOUGH_DATA
+        if (currentReadyState < HAVE_ENOUGH_DATA) {
           Logger.debug(`Media element played directly but overall readyState is ${currentReadyState}. Pausing this element.`);
           
           // Pause the element that tried to play
@@ -719,8 +728,8 @@ export class MediaSync extends HTMLElement {
       
       // Check if all tracks have sufficient readyState to play
       const currentReadyState = this.readyState;
-      if (currentReadyState < 4) { // HAVE_ENOUGH_DATA
-        Logger.debug(`Cannot play yet - readyState is ${currentReadyState} but need 4 (HAVE_ENOUGH_DATA)`);
+      if (currentReadyState < HAVE_ENOUGH_DATA) {
+        Logger.debug(`Cannot play yet - readyState is ${currentReadyState} but need ${HAVE_ENOUGH_DATA} (HAVE_ENOUGH_DATA)`);
         return;
       }
       
