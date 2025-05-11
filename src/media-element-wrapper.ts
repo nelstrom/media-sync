@@ -1,4 +1,4 @@
-import { MediaEvent, SEEK_DEBOUNCE_DELAY, type MediaEventName } from "./constants";
+import { MediaEvent, SEEK_DEBOUNCE_DELAY, type MediaEventName, type ReadyState } from "./constants";
 import { Logger, debounce } from "./utils";
 
 /**
@@ -198,8 +198,8 @@ export class MediaElementWrapper extends EventTarget {
    * 3 = HAVE_FUTURE_DATA
    * 4 = HAVE_ENOUGH_DATA
    */
-  public get readyState(): number {
-    return this._element?.readyState || 0;
+  public get readyState(): ReadyState {
+    return (this._element?.readyState || 0) as ReadyState;
   }
 
   /**

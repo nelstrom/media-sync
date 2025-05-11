@@ -1,4 +1,4 @@
-import { MediaEvent, SEEK_DEBOUNCE_DELAY, type MediaEventName } from "./constants";
+import { MediaEvent, SEEK_DEBOUNCE_DELAY, type MediaEventName, type ReadyState } from "./constants";
 import { MediaElementWrapper } from "./media-element-wrapper";
 import { Logger } from "./utils";
 
@@ -53,7 +53,7 @@ interface DriftCorrection extends DriftRecord {
 export class MediaSync extends HTMLElement {
   private mediaElements: MediaElementWrapper[] = [];
   private isSyncingSeeking: boolean = false;
-  private lastReadyState: number = HAVE_NOTHING;
+  private lastReadyState: ReadyState = HAVE_NOTHING;
   private isWaitingForData: boolean = false;
   
   // Drift sampling properties
@@ -854,14 +854,15 @@ export class MediaSync extends HTMLElement {
    * 3 = HAVE_FUTURE_DATA
    * 4 = HAVE_ENOUGH_DATA
    */
-  public get readyState(): number {
+  public get readyState(): ReadyState {
     if (this.mediaElements.length === 0) {
       Logger.debug("No media elements available to get readyState");
       return 0;
     }
     
     // Find the minimum readyState among all media elements
-    return Math.min(...this.mediaElements.map(media => media.readyState));
+    // Use type assertion since TS doesn't know Math.min preserves the ReadyState type
+    return Math.min(...this.mediaElements.map(media => media.readyState)) as ReadyState;
   }
 
   /**
