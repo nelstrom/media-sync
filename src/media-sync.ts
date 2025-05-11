@@ -51,31 +51,27 @@ interface DriftCorrection extends DriftRecord {
  * MediaSync class that manages and synchronizes multiple media elements
  */
 export class MediaSync extends HTMLElement {
+  // Private properties
   private mediaElements: MediaElementWrapper[] = [];
   private isSyncingSeeking: boolean = false;
   private lastReadyState: ReadyState = HAVE_NOTHING;
   private isWaitingForData: boolean = false;
-  
-  // Drift sampling properties
-  public driftSamples: (DriftSample | DriftCorrection)[] = [];
   private driftSamplingIntervalId: number | null = null;
-  
-  // Drift correction properties
   private driftCorrectionIntervalId: number | null = null;
-  public driftCorrectionEnabled: boolean = true;
-  
-  // Web Audio API integration
   private audioContext: AudioContext | null = null;
   private useWebAudio: boolean = true; // Use Web Audio API for all browsers
-  
-  // Boolean property to disable synchronization
   private _disabled: boolean = false;
   
-  // Define observed attributes for the element
+  // Public properties
+  public driftSamples: (DriftSample | DriftCorrection)[] = [];
+  public driftCorrectionEnabled: boolean = true;
+  
+  // Static properties
   static get observedAttributes() {
     return ['disabled'];
   }
 
+  // Constructor
   constructor() {
     super();
     Logger.debug("MediaSync: Initializing");
@@ -89,6 +85,160 @@ export class MediaSync extends HTMLElement {
     Logger.debug("Using Web Audio API for precise synchronization");
   }
 
+  // Public getters and setters
+  
+  /**
+   * Get the disabled state
+   */
+  get disabled(): boolean {
+    return this._disabled;
+  }
+  
+  /**
+   * Set the disabled state
+   */
+  set disabled(value: boolean) {
+    if (this._disabled !== value) {
+      this._disabled = value;
+      
+      // Update the attribute to match the property
+      if (value) {
+        this.setAttribute('disabled', '');
+      } else {
+        this.removeAttribute('disabled');
+      }
+    }
+  }
+  
+  /**
+   * Get the current playback time of the main media element
+   */
+  public get currentTime(): number {
+    if (this.mediaElements.length === 0) {
+      Logger.error("No media elements available to get currentTime");
+      return 0;
+    }
+    
+    return this.mainElement.currentTime;
+  }
+  
+  /**
+   * Set the current playback time for all media elements
+   */
+  public set currentTime(time: number) {
+    // No-op if disabled
+    if (this._disabled) {
+      Logger.debug("MediaSync is disabled, setting currentTime is a no-op");
+      return;
+    }
+    
+    // Use the seekTracks method to handle the seeking for all elements
+    this.seekTracks(this.mediaElements, time);
+  }
+
+  /**
+   * Get the readyState of the MediaSync element
+   * Returns the lowest readyState value of all media elements
+   */
+  public get readyState(): ReadyState {
+    if (this.mediaElements.length === 0) {
+      Logger.debug("No media elements available to get readyState");
+      return 0;
+    }
+    
+    // Find the minimum readyState among all media elements
+    // Use type assertion since TS doesn't know Math.min preserves the ReadyState type
+    return Math.min(...this.mediaElements.map(media => media.readyState)) as ReadyState;
+  }
+
+  /**
+   * Get the paused state of the media sync
+   * Returns true if the main element is paused
+   */
+  public get paused(): boolean {
+    if (this.mediaElements.length === 0) {
+      Logger.error("No media elements available to get paused state");
+      return true;
+    }
+    
+    return this.mainElement.paused;
+  }
+  
+  /**
+   * Get the playback rate from the main media element
+   */
+  public get playbackRate(): number {
+    if (this.mediaElements.length === 0) {
+      Logger.error("No media elements available to get playbackRate");
+      return 1.0;
+    }
+    
+    return this.mainElement.playbackRate;
+  }
+  
+  /**
+   * Set the playback rate for all media elements
+   */
+  public set playbackRate(rate: number) {
+    // No-op if disabled
+    if (this._disabled) {
+      Logger.debug("MediaSync is disabled, setting playbackRate is a no-op");
+      return;
+    }
+    
+    // Use the setPlaybackRateTracks method to handle updating the rate for all elements
+    this.setPlaybackRateTracks(this.mediaElements, rate);
+  }
+
+  // Public methods
+  
+  /**
+   * Initialize the media sync element
+   * @param mediaElements Optional array of HTMLMediaElements to use instead of finding them in the DOM
+   * @returns Array of MediaElementWrapper instances created
+   */
+  public initialize(mediaElements?: HTMLMediaElement[]): MediaElementWrapper[] {
+    // If no media elements are provided, find all media elements that are children of this element
+    if (!mediaElements) {
+      mediaElements = [...this.querySelectorAll("audio, video")] as HTMLMediaElement[];
+    }
+
+    if (mediaElements.length === 0) {
+      Logger.error("No media elements found in MediaSync container");
+      return [];
+    }
+
+    // The first element is designated as the main one (controlling sync)
+    return this.setupMediaElements(mediaElements, mediaElements[0]);
+  }
+  
+  /**
+   * Play all media elements
+   */
+  public async play(): Promise<void> {
+    // No-op if disabled
+    if (this._disabled) {
+      Logger.debug("MediaSync is disabled, play() is a no-op");
+      return;
+    }
+    
+    await this.playTracks();
+  }
+  
+  /**
+   * Pause all media elements
+   */
+  public pause(): void {
+    // No-op if disabled
+    if (this._disabled) {
+      Logger.debug("MediaSync is disabled, pause() is a no-op");
+      return;
+    }
+    
+    this.pauseTracks();
+  }
+
+  // Lifecycle methods
   /**
    * Called when the element is connected to the DOM
    */
@@ -134,6 +284,8 @@ export class MediaSync extends HTMLElement {
       }
     }
   }
+
+  // Private methods
   
   /**
    * Check if any media element is currently playing
@@ -143,28 +295,22 @@ export class MediaSync extends HTMLElement {
   }
   
   /**
-   * Get the disabled state
+   * Get the main media element (or first one if no main element is designated)
    */
-  get disabled(): boolean {
-    return this._disabled;
+  private get mainElement(): MediaElementWrapper {
+    return this.mediaElements.find(media => media.isMain) || this.mediaElements[0];
   }
-  
+
   /**
-   * Set the disabled state
+   * Returns all media wrappers except the specified one
+   * @param wrapperToExclude The media wrapper to exclude from the result
    */
-  set disabled(value: boolean) {
-    if (this._disabled !== value) {
-      this._disabled = value;
-      
-      // Update the attribute to match the property
-      if (value) {
-        this.setAttribute('disabled', '');
-      } else {
-        this.removeAttribute('disabled');
-      }
-    }
+  private otherTracks(wrapperToExclude: MediaElementWrapper): MediaElementWrapper[] {
+    return this.mediaElements.filter(wrapper => {
+      return wrapper !== wrapperToExclude;
+    });
   }
-  
+
   /**
    * Initialize the Web Audio API context
    */
@@ -433,26 +579,6 @@ export class MediaSync extends HTMLElement {
   }
 
   /**
-   * Initialize the media sync element
-   * @param mediaElements Optional array of HTMLMediaElements to use instead of finding them in the DOM
-   * @returns Array of MediaElementWrapper instances created
-   */
-  public initialize(mediaElements?: HTMLMediaElement[]): MediaElementWrapper[] {
-    // If no media elements are provided, find all media elements that are children of this element
-    if (!mediaElements) {
-      mediaElements = [...this.querySelectorAll("audio, video")] as HTMLMediaElement[];
-    }
-
-    if (mediaElements.length === 0) {
-      Logger.error("No media elements found in MediaSync container");
-      return [];
-    }
-
-    // The first element is designated as the main one (controlling sync)
-    return this.setupMediaElements(mediaElements, mediaElements[0]);
-  }
-
-  /**
    * Set up media elements for synchronization
    */
   private setupMediaElements(
@@ -688,33 +814,19 @@ export class MediaSync extends HTMLElement {
   }
 
   /**
-   * Play all media elements
+   * Suppress events of the specified type on all media elements
+   * @param eventType The event type to suppress
    */
-  public async play(): Promise<void> {
-    // No-op if disabled
-    if (this._disabled) {
-      Logger.debug("MediaSync is disabled, play() is a no-op");
-      return;
-    }
-    
-    await this.playTracks();
+  private suppressEvents(eventType: MediaEventName): void {
+    this.mediaElements.forEach((wrapper) => wrapper.suppressEventType(eventType));
   }
 
   /**
-   * Get the main media element (or first one if no main element is designated)
+   * Enable events of the specified type on all media elements
+   * @param eventType The event type to enable
    */
-  private get mainElement(): MediaElementWrapper {
-    return this.mediaElements.find(media => media.isMain) || this.mediaElements[0];
-  }
-
-  /**
-   * Returns all media wrappers except the specified one
-   * @param wrapperToExclude The media wrapper to exclude from the result
-   */
-  private otherTracks(wrapperToExclude: MediaElementWrapper): MediaElementWrapper[] {
-    return this.mediaElements.filter(wrapper => {
-      return wrapper !== wrapperToExclude;
-    });
+  private enableEvents(eventType: MediaEventName): void {
+    this.mediaElements.forEach((wrapper) => wrapper.enableEventType(eventType));
   }
 
   private async playTracks(mediaElements = this.mediaElements): Promise<void> {
@@ -766,35 +878,6 @@ export class MediaSync extends HTMLElement {
     }
   }
 
-  /**
-   * Pause all media elements
-   */
-  public pause(): void {
-    // No-op if disabled
-    if (this._disabled) {
-      Logger.debug("MediaSync is disabled, pause() is a no-op");
-      return;
-    }
-    
-    this.pauseTracks();
-  }
-
-  /**
-   * Suppress events of the specified type on all media elements
-   * @param eventType The event type to suppress
-   */
-  private suppressEvents(eventType: MediaEventName): void {
-    this.mediaElements.forEach((wrapper) => wrapper.suppressEventType(eventType));
-  }
-
-  /**
-   * Enable events of the specified type on all media elements
-   * @param eventType The event type to enable
-   */
-  private enableEvents(eventType: MediaEventName): void {
-    this.mediaElements.forEach((wrapper) => wrapper.enableEventType(eventType));
-  }
-
   private pauseTracks(mediaElements = this.mediaElements): void {
     if (mediaElements.length === 0) {
       Logger.error("No media elements available to pause");
@@ -819,91 +902,6 @@ export class MediaSync extends HTMLElement {
     }, 0);
   }
   
-  /**
-   * Get the current playback time of the main media element
-   */
-  public get currentTime(): number {
-    if (this.mediaElements.length === 0) {
-      Logger.error("No media elements available to get currentTime");
-      return 0;
-    }
-    
-    return this.mainElement.currentTime;
-  }
-  
-  /**
-   * Set the current playback time for all media elements
-   */
-  public set currentTime(time: number) {
-    // No-op if disabled
-    if (this._disabled) {
-      Logger.debug("MediaSync is disabled, setting currentTime is a no-op");
-      return;
-    }
-    
-    // Use the seekTracks method to handle the seeking for all elements
-    this.seekTracks(this.mediaElements, time);
-  }
-
-  /**
-   * Get the readyState of the MediaSync element
-   * Returns the minimum readyState value of all media elements
-   * 0 = HAVE_NOTHING
-   * 1 = HAVE_METADATA
-   * 2 = HAVE_CURRENT_DATA
-   * 3 = HAVE_FUTURE_DATA
-   * 4 = HAVE_ENOUGH_DATA
-   */
-  public get readyState(): ReadyState {
-    if (this.mediaElements.length === 0) {
-      Logger.debug("No media elements available to get readyState");
-      return 0;
-    }
-    
-    // Find the minimum readyState among all media elements
-    // Use type assertion since TS doesn't know Math.min preserves the ReadyState type
-    return Math.min(...this.mediaElements.map(media => media.readyState)) as ReadyState;
-  }
-
-  /**
-   * Get the paused state of the media sync
-   * Returns true if the main element is paused
-   */
-  public get paused(): boolean {
-    if (this.mediaElements.length === 0) {
-      Logger.error("No media elements available to get paused state");
-      return true;
-    }
-    
-    return this.mainElement.paused;
-  }
-  
-  /**
-   * Get the playback rate from the main media element
-   */
-  public get playbackRate(): number {
-    if (this.mediaElements.length === 0) {
-      Logger.error("No media elements available to get playbackRate");
-      return 1.0;
-    }
-    
-    return this.mainElement.playbackRate;
-  }
-  
-  /**
-   * Set the playback rate for all media elements
-   */
-  public set playbackRate(rate: number) {
-    // No-op if disabled
-    if (this._disabled) {
-      Logger.debug("MediaSync is disabled, setting playbackRate is a no-op");
-      return;
-    }
-    
-    // Use the setPlaybackRateTracks method to handle updating the rate for all elements
-    this.setPlaybackRateTracks(this.mediaElements, rate);
-  }
-
   /**
    * Set the playback rate for a set of media elements
    * @param mediaElements The media elements to update (defaults to all elements)
