@@ -63,6 +63,7 @@ export class MediaSync extends HTMLElement {
   private audioContext: AudioContext | null = null;
   private useWebAudio: boolean = true; // Use Web Audio API for all browsers
   private _disabled: boolean = false;
+  private _loop: boolean = false;
   
   // Public properties
   public driftSamples: (DriftSample | DriftCorrection)[] = [];
@@ -70,7 +71,7 @@ export class MediaSync extends HTMLElement {
   
   // Static properties
   static get observedAttributes() {
-    return ['disabled'];
+    return ['disabled', 'loop'];
   }
 
   // Constructor
@@ -82,6 +83,12 @@ export class MediaSync extends HTMLElement {
     if (this.hasAttribute('disabled')) {
       this._disabled = true;
       Logger.debug("MediaSync: Disabled by attribute");
+    }
+    
+    // Check for loop attribute in constructor
+    if (this.hasAttribute('loop')) {
+      this._loop = true;
+      Logger.debug("MediaSync: Loop enabled by attribute");
     }
     
     Logger.debug("Using Web Audio API for precise synchronization");
@@ -217,6 +224,42 @@ export class MediaSync extends HTMLElement {
     
     return this.mainElement.ended;
   }
+  
+  /**
+   * Get the loop state of the media sync element
+   * Returns true if looping is enabled
+   */
+  public get loop(): boolean {
+    return this._loop;
+  }
+  
+  /**
+   * Set the loop state of the media sync element
+   * Also updates the loop state of the main element to match
+   */
+  public set loop(value: boolean) {
+    if (this._loop !== value) {
+      this._loop = value;
+      Logger.debug(`MediaSync: Loop ${value ? 'enabled' : 'disabled'}`);
+      
+      // Update the attribute to match the property
+      if (value) {
+        this.setAttribute('loop', '');
+      } else {
+        this.removeAttribute('loop');
+      }
+      
+      // Update loop state on main element if it exists
+      if (this.mediaElements.length > 0) {
+        const mainElement = this.mainElement;
+        if (mainElement) {
+          mainElement.loop = value;
+          // Ensure non-main elements don't have loop enabled
+          this.updateLoopStateForNonMainElements();
+        }
+      }
+    }
+  }
 
   // Public methods
   
@@ -309,6 +352,20 @@ export class MediaSync extends HTMLElement {
         this.startDriftCorrection();
         // Reinitialize Web Audio API
         this.initAudioContext();
+      }
+    } else if (name === 'loop') {
+      // Convert attribute value to boolean
+      this._loop = newValue !== null;
+      Logger.debug(`MediaSync: Loop ${this._loop ? 'enabled' : 'disabled'}`);
+      
+      // Update loop state on main element if it exists
+      if (this.mediaElements.length > 0) {
+        const mainElement = this.mainElement;
+        if (mainElement) {
+          mainElement.loop = this._loop;
+          // Ensure non-main elements don't have loop enabled
+          this.updateLoopStateForNonMainElements();
+        }
       }
     }
   }
@@ -799,6 +856,21 @@ export class MediaSync extends HTMLElement {
         }));
       });
       
+      // If this is the main element, listen for loop property changes
+      if (isMain) {
+        wrapper.addEventListener('loopchange', (e: Event) => {
+          const customEvent = e as CustomEvent;
+          const loopValue = customEvent.detail.loop;
+          Logger.debug(`Loop change event from main element: ${loopValue}`);
+          
+          // Only update if the value is different to avoid loops
+          if (this._loop !== loopValue) {
+            // Update the MediaSync loop property/attribute to match main element
+            this.loop = loopValue;
+          }
+        });
+      }
+      
       // Handle ended events (when a track finishes playing)
       wrapper.addEventListener(MediaEvent.ended, () => {
         Logger.debug(`Ended event from element ${index}`);
@@ -837,6 +909,9 @@ export class MediaSync extends HTMLElement {
       // Use a small delay to ensure all media elements are properly registered
       setTimeout(() => this.initAudioContext(), 0);
     }
+    
+    // Synchronize loop state for all elements
+    this.updateLoopStateForNonMainElements();
 
     return wrappers;
   }
@@ -1009,5 +1084,25 @@ export class MediaSync extends HTMLElement {
     setTimeout(() => {
       this.enableEvents(MediaEvent.ratechange);
     }, 10);
+  }
+  
+  /**
+   * Update loop state for non-main elements
+   * Ensures only the main element has loop enabled if needed
+   */
+  private updateLoopStateForNonMainElements(): void {
+    const mainElement = this.mainElement;
+    if (!mainElement) return;
+    
+    // Set loop on main element based on MediaSync loop state
+    mainElement.loop = this._loop;
+    
+    // Ensure loop is disabled for all non-main elements
+    this.otherTracks(mainElement).forEach(media => {
+      if (media.loop) {
+        Logger.debug(`Disabling loop for non-main track ${media.id}`);
+        media.loop = false;
+      }
+    });
   }
 }

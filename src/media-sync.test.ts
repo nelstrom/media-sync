@@ -645,6 +645,172 @@ describe("MediaSync", () => {
       );
     });
   });
+  
+  describe("loop property", () => {
+    beforeEach(() => {
+      // Set up wrappers for testing loop behavior
+      wrapper1.isMain = true;
+      wrapper2.isMain = false;
+    });
+    
+    it("should initialize with loop=false by default", () => {
+      // Create a new MediaSync element
+      const newMediaSync = new MediaSync();
+      expect(newMediaSync.loop).toBe(false);
+    });
+    
+    it("should initialize with loop=true if 'loop' attribute is present", () => {
+      // Create a new element with the loop attribute
+      const loopMediaSync = document.createElement("media-sync");
+      loopMediaSync.setAttribute('loop', '');
+      document.body.appendChild(loopMediaSync);
+      
+      // Use a try-finally to ensure element is removed even if test fails
+      try {
+        expect(loopMediaSync.loop).toBe(true);
+      } finally {
+        // Clean up
+        document.body.removeChild(loopMediaSync);
+      }
+    });
+    
+    it("should get loop property from internal state", () => {
+      // Default state should be false
+      expect(mediaSyncElement.loop).toBe(false);
+      
+      // Set internal state directly for testing
+      (mediaSyncElement as any)._loop = true;
+      
+      expect(mediaSyncElement.loop).toBe(true);
+    });
+    
+    it("should set loop property and update attribute", () => {
+      // Spy on setAttribute and removeAttribute
+      const setAttributeSpy = vi.spyOn(mediaSyncElement, "setAttribute");
+      const removeAttributeSpy = vi.spyOn(mediaSyncElement, "removeAttribute");
+      
+      // Set loop to true
+      mediaSyncElement.loop = true;
+      
+      // Verify attribute was set
+      expect(setAttributeSpy).toHaveBeenCalledWith("loop", "");
+      expect(mediaSyncElement.loop).toBe(true);
+      
+      // Set loop to false
+      mediaSyncElement.loop = false;
+      
+      // Verify attribute was removed
+      expect(removeAttributeSpy).toHaveBeenCalledWith("loop");
+      expect(mediaSyncElement.loop).toBe(false);
+    });
+    
+    it("should update main element's loop property when changed", () => {
+      // Create a spy for the wrapper's loop setter
+      const wrapper1LoopSetter = vi.fn();
+      
+      Object.defineProperty(wrapper1, "loop", {
+        configurable: true,
+        get: () => false,
+        set: wrapper1LoopSetter,
+      });
+      
+      // Mock the updateLoopStateForNonMainElements method
+      const updateLoopSpy = vi.spyOn(
+        mediaSyncElement as any, 
+        "updateLoopStateForNonMainElements"
+      );
+      
+      // Set loop property
+      mediaSyncElement.loop = true;
+      
+      // Verify main wrapper's loop was updated
+      expect(wrapper1LoopSetter).toHaveBeenCalledWith(true);
+      
+      // Verify updateLoopStateForNonMainElements was called
+      expect(updateLoopSpy).toHaveBeenCalled();
+    });
+    
+    it("should update loop property when 'loop' attribute changes", () => {
+      // Reset state
+      (mediaSyncElement as any)._loop = false;
+      
+      // Spy on updateLoopStateForNonMainElements
+      const updateLoopSpy = vi.spyOn(mediaSyncElement as any, "updateLoopStateForNonMainElements");
+      
+      // Trigger attributeChangedCallback manually
+      mediaSyncElement.attributeChangedCallback("loop", null, "");
+      
+      // Verify loop property was updated to true
+      expect(mediaSyncElement.loop).toBe(true);
+      expect(updateLoopSpy).toHaveBeenCalled();
+    });
+    
+    it("should disable loop on non-main media elements", () => {
+      // Setup loop getter/setter spies for wrappers
+      const wrapper1LoopSpy = vi.spyOn(wrapper1, "loop", "get").mockReturnValue(true);
+      const wrapper1LoopSetter = vi.fn();
+      Object.defineProperty(wrapper1, "loop", {
+        configurable: true,
+        get: wrapper1LoopSpy,
+        set: wrapper1LoopSetter,
+      });
+      
+      const wrapper2LoopSpy = vi.spyOn(wrapper2, "loop", "get").mockReturnValue(true);
+      const wrapper2LoopSetter = vi.fn();
+      Object.defineProperty(wrapper2, "loop", {
+        configurable: true,
+        get: wrapper2LoopSpy,
+        set: wrapper2LoopSetter,
+      });
+      
+      // Set loop to true on MediaSync
+      mediaSyncElement.loop = true;
+      
+      // Verify main element's loop was set to true
+      expect(wrapper1LoopSetter).toHaveBeenCalledWith(true);
+      
+      // Manually invoke updateLoopStateForNonMainElements
+      (mediaSyncElement as any).updateLoopStateForNonMainElements();
+      
+      // Verify non-main element's loop was set to false
+      expect(wrapper2LoopSetter).toHaveBeenCalledWith(false);
+    });
+    
+    it("should update MediaSync loop property when main element's loop changes", () => {
+      // Set initial loop state on MediaSync to false
+      (mediaSyncElement as any)._loop = false;
+      
+      // Setup spies for setAttribute
+      const setAttributeSpy = vi.spyOn(mediaSyncElement, "setAttribute");
+      
+      // Trigger loopchange event from the main element
+      const loopChangeEvent = new CustomEvent("loopchange", {
+        detail: { loop: true }
+      });
+      wrapper1.dispatchEvent(loopChangeEvent);
+      
+      // Verify MediaSync loop property and attribute were updated
+      expect(mediaSyncElement.loop).toBe(true);
+      expect(setAttributeSpy).toHaveBeenCalledWith("loop", "");
+    });
+    
+    it("should not update MediaSync loop property when values match", () => {
+      // Set initial loop state on MediaSync to true
+      mediaSyncElement.loop = true;
+      
+      // Clear previous calls
+      const setLoopSpy = vi.spyOn(mediaSyncElement, "loop", "set");
+      
+      // Trigger loopchange event with same value as current
+      const loopChangeEvent = new CustomEvent("loopchange", {
+        detail: { loop: true }
+      });
+      wrapper1.dispatchEvent(loopChangeEvent);
+      
+      // Verify setter was not called again to avoid infinite loop
+      expect(setLoopSpy).not.toHaveBeenCalled();
+    });
+  });
 
   describe("readyState and waiting functionality", () => {
     it("should report the minimum readyState of all media elements", () => {

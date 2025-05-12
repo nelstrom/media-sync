@@ -43,6 +43,7 @@ The `<media-sync>` element works on the assumption that all provided tracks have
 - [X] give media-element-wrapper a similar interface to media elements (play, pause, currentTime)
 - [X] refactor tests: media-sync test should test integration between media-sync and media-element-wrapper (without interacting with the MediaElements themselves). media-element-wrapper test should test integration between the wrapper and the media-element itself.
 - [X] replace `isSyncing{Play,Pause,Sync}` in media-sync with equivalent in media-element-wrapper. When syncing one media-element, media-sync would set other elements into a state where they don't emit events, until the sync is complete
+- [ ] refine drift correction with playbackRate tweaking for small discrepancies (and seeking for big discrepancies)
 - [ ] add a boolean loop attribute/property to `media-sync` (mirror this against the main media element, and prevent non-main media elements from having loop enabled)
 - [X] add a readyState property (getter only) for media-sync. It should do `Math.min(mediaElements.map(e => e.readyState))`
 - [ ] in Safari, experiment with using `mediaGroup`: https://developer.mozilla.org/en-US/docs/Web/API/HTMLMediaElement/mediaGroup - https://developer.apple.com/documentation/webkitjs/mediacontroller

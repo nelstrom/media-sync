@@ -110,6 +110,23 @@ export class MediaElementWrapper extends EventTarget {
     Logger.debug(`Setting ${this.id} playbackRate to: ${rate}`);
     this._element.playbackRate = rate;
   }
+  
+  /**
+   * Get if the media should loop
+   */
+  public get loop(): boolean {
+    return this._element?.loop || false;
+  }
+  
+  /**
+   * Set if the media should loop
+   */
+  public set loop(value: boolean) {
+    if (!this._element) return;
+    
+    Logger.debug(`Setting ${this.id} loop to: ${value}`);
+    this._element.loop = value;
+  }
 
   // Public methods
   
@@ -302,6 +319,26 @@ export class MediaElementWrapper extends EventTarget {
     // Ended events are important for handling tracks with different durations
     this._element.addEventListener("ended", () => {
       this.dispatchEvent(new CustomEvent(MediaEvent.ended));
+    });
+    
+    // Observe the loop attribute for changes
+    const loopObserver = new MutationObserver((mutations) => {
+      mutations.forEach((mutation) => {
+        if (mutation.attributeName === 'loop') {
+          // Notify about loop property changes via a custom event
+          const hasLoop = this._element.hasAttribute('loop');
+          Logger.debug(`Loop attribute changed to ${hasLoop ? 'true' : 'false'} on element ${this.id}`);
+          this.dispatchEvent(new CustomEvent('loopchange', {
+            detail: { loop: hasLoop }
+          }));
+        }
+      });
+    });
+    
+    // Start observing the loop attribute
+    loopObserver.observe(this._element, { 
+      attributes: true, 
+      attributeFilter: ['loop'] 
     });
   }
 }
