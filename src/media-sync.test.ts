@@ -115,12 +115,30 @@ describe("MediaSync", () => {
     it("should sync pause to other elements when one element triggers pause", () => {
       const wrapper1PauseSpy = vi.spyOn(wrapper1, "pause");
       const wrapper2PauseSpy = vi.spyOn(wrapper2, "pause");
+      
+      // Mock ended state for wrapper1 as false (not ended)
+      vi.spyOn(wrapper1, "ended", "get").mockReturnValue(false);
 
       // Simulate a pause event from wrapper1
       wrapper1.dispatchEvent(new CustomEvent(MediaEvent.pause));
 
       expect(wrapper1PauseSpy).not.toHaveBeenCalled();
       expect(wrapper2PauseSpy).toHaveBeenCalled();
+    });
+    
+    it("should not sync pause to other elements when a track reaches its end", () => {
+      const wrapper1PauseSpy = vi.spyOn(wrapper1, "pause");
+      const wrapper2PauseSpy = vi.spyOn(wrapper2, "pause");
+      
+      // Mock ended state for wrapper1 as true (ended)
+      vi.spyOn(wrapper1, "ended", "get").mockReturnValue(true);
+
+      // Simulate a pause event from wrapper1 that has ended
+      wrapper1.dispatchEvent(new CustomEvent(MediaEvent.pause));
+
+      // Should not pause other elements
+      expect(wrapper1PauseSpy).not.toHaveBeenCalled();
+      expect(wrapper2PauseSpy).not.toHaveBeenCalled();
     });
 
     it("should sync playback rate to other elements when one element changes rate", () => {

@@ -718,6 +718,13 @@ export class MediaSync extends HTMLElement {
           return;
         }
         
+        // Check if this pause event was triggered because the track reached its end
+        // If it's ended, we should NOT propagate the pause to other tracks
+        if (wrapper.ended) {
+          Logger.debug(`Ignoring pause event from element ${index} because it reached the end of its duration`);
+          return;
+        }
+        
         // Forward the pause event to listeners on the MediaSync element
         this.dispatchEvent(new CustomEvent('pause', {
           bubbles: true,
