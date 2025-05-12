@@ -86,6 +86,13 @@ export class MediaElementWrapper extends EventTarget {
   public get readyState(): ReadyState {
     return (this._element?.readyState || 0) as ReadyState;
   }
+  
+  /**
+   * Check if the media has ended playback
+   */
+  public get ended(): boolean {
+    return this._element?.ended || false;
+  }
 
   /**
    * Get the current playback rate
@@ -290,6 +297,11 @@ export class MediaElementWrapper extends EventTarget {
     // Waiting events are important for knowing when playback has stopped due to buffering
     this._element.addEventListener("waiting", () => {
       this.dispatchEvent(new CustomEvent(MediaEvent.waiting));
+    });
+    
+    // Ended events are important for handling tracks with different durations
+    this._element.addEventListener("ended", () => {
+      this.dispatchEvent(new CustomEvent(MediaEvent.ended));
     });
   }
 }

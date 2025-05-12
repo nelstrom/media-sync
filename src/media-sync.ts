@@ -31,12 +31,14 @@ interface DriftRecord {
   currentTime: number;    // Main track's currentTime
 }
 
+// Define a union type for tracking drift or ended state
+type DriftInfo = 
+  | { id: string; delta: number; ended?: false } // Track is playing, with drift
+  | { id: string; delta?: never; ended: true }   // Track has ended (shorter than main)
+
 interface DriftSample extends DriftRecord {
   type: 'sample';
-  drifts: {
-    id: string;
-    delta: number;        // Drift in milliseconds (relative to main)
-  }[];
+  drifts: DriftInfo[];
 }
 
 interface DriftCorrection extends DriftRecord {
@@ -188,6 +190,32 @@ export class MediaSync extends HTMLElement {
     
     // Use the setPlaybackRateTracks method to handle updating the rate for all elements
     this.setPlaybackRateTracks(this.mediaElements, rate);
+  }
+  
+  /**
+   * Get the duration of the media sync element
+   * Returns the duration of the main element
+   */
+  public get duration(): number {
+    if (this.mediaElements.length === 0) {
+      Logger.error("No media elements available to get duration");
+      return 0;
+    }
+    
+    return this.mainElement.duration;
+  }
+  
+  /**
+   * Get the ended state of the media sync element
+   * Returns true if the main element has ended
+   */
+  public get ended(): boolean {
+    if (this.mediaElements.length === 0) {
+      Logger.error("No media elements available to get ended state");
+      return false;
+    }
+    
+    return this.mainElement.ended;
   }
 
   // Public methods
@@ -417,6 +445,15 @@ export class MediaSync extends HTMLElement {
     
     // Calculate drift for each track relative to the main track
     const drifts = this.mediaElements.map(media => {
+      // Check if this track has ended (shorter than main track)
+      if (media !== mainElement && media.ended) {
+        Logger.debug(`Track ${media.id} has ended, recording as ended in drift sample`);
+        return {
+          id: media.id,
+          ended: true
+        } as const; // Use const assertion to tell TypeScript this is exactly { ended: true }
+      }
+      
       // Calculate drift in milliseconds and round to nearest integer
       const delta = (media === mainElement) ? 
         0 : // No drift for the main track
@@ -424,8 +461,9 @@ export class MediaSync extends HTMLElement {
       
       return {
         id: media.id,
-        delta: delta
-      };
+        delta: delta,
+        ended: false
+      } as const; // Use const assertion to tell TypeScript this is exactly { delta: number, ended: false }
     });
     
     // Record the sample
@@ -487,7 +525,14 @@ export class MediaSync extends HTMLElement {
     }
     
     // Find tracks that have drifted beyond the threshold
+    // Skip any tracks that have already ended - we can't correct them
     const driftedTracks = this.otherTracks(mainElement).filter(media => {
+      // Skip ended tracks
+      if (media.ended) {
+        Logger.debug(`Skipping drift correction for track ${media.id} because it has ended`);
+        return false;
+      }
+      
       const drift = Math.abs(Math.round((media.currentTime - mainTime) * 1000));
       return drift > DRIFT_CORRECTION_THRESHOLD;
     });
@@ -745,6 +790,30 @@ export class MediaSync extends HTMLElement {
           bubbles: true,
           composed: true,
         }));
+      });
+      
+      // Handle ended events (when a track finishes playing)
+      wrapper.addEventListener(MediaEvent.ended, () => {
+        Logger.debug(`Ended event from element ${index}`);
+        
+        if (isMain) {
+          Logger.debug('Main track ended, forwarding ended event');
+          
+          // Pause all other tracks when the main track ends
+          if (!this._disabled) {
+            const otherTracks = this.otherTracks(wrapper);
+            this.pauseTracks(otherTracks);
+          }
+          
+          // Forward the ended event to listeners on the MediaSync element
+          this.dispatchEvent(new CustomEvent('ended', {
+            bubbles: true,
+            composed: true
+          }));
+        } else {
+          // For non-main tracks that end before the main track, we just let them stay paused
+          Logger.debug(`Non-main track ${index} ended before main track`);
+        }
       });
 
       if (isMain) {

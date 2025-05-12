@@ -13,6 +13,7 @@ export const MediaEvent = {
   canplay: "media-sync:canplay",
   canplaythrough: "media-sync:canplaythrough",
   waiting: "media-sync:waiting",
+  ended: "media-sync:ended",
 } as const;
 
 export type MediaEventName = (typeof MediaEvent)[keyof typeof MediaEvent];

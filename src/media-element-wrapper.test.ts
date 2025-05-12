@@ -170,6 +170,30 @@ describe("MediaElementWrapper", () => {
     });
   });
   
+  describe("ended getter", () => {
+    it("should return correct ended state based on media element", () => {
+      // Default to not ended
+      Object.defineProperty(mediaElement, 'ended', {
+        configurable: true,
+        value: false,
+        writable: true
+      });
+      
+      // Check that the wrapper returns the correct state
+      expect(wrapper.ended).toBe(false);
+      
+      // Change to ended state
+      Object.defineProperty(mediaElement, 'ended', {
+        configurable: true,
+        value: true,
+        writable: true
+      });
+      
+      // Check that the wrapper returns the updated state
+      expect(wrapper.ended).toBe(true);
+    });
+  });
+  
   describe("isEnded method", () => {
     it("should return true when currentTime is close to duration", () => {
       // Set currentTime to almost at the end
@@ -364,6 +388,25 @@ describe("MediaElementWrapper", () => {
         expect.objectContaining({
           type: MediaEvent.ratechange,
           detail: { playbackRate: 1.5 }
+        })
+      );
+    });
+    
+    it("should dispatch ended event when media element ends", () => {
+      // Get the ended listener and call it
+      const endedCall = addEventListenerMock.mock.calls.find(
+        call => call[0] === "ended"
+      );
+      expect(endedCall).toBeDefined();
+      const endedHandler = endedCall![1];
+      
+      // Call the ended handler
+      endedHandler();
+      
+      // Verify the custom event was dispatched
+      expect(dispatchEventSpy).toHaveBeenCalledWith(
+        expect.objectContaining({
+          type: MediaEvent.ended
         })
       );
     });
