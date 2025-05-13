@@ -594,6 +594,50 @@ describe("MediaSync", () => {
       const tracksPassedToSeekTracks = seekTracksSpy.mock.calls[0][0];
       expect(tracksPassedToSeekTracks).toContain(wrapper2);
     });
+
+    it("should suppress waiting events during drift correction and re-enable after delay", () => {
+      // Set up conditions for drift correction
+      wrapper1.isMain = true;
+      wrapper2.isMain = false;
+
+      // Mock currentTime values to ensure drift exceeds threshold
+      vi.spyOn(wrapper1, "currentTime", "get").mockReturnValue(50);
+      vi.spyOn(wrapper2, "currentTime", "get").mockReturnValue(40); // Large 10s drift
+
+      // Mock paused state on main (not paused to allow correction)
+      vi.spyOn(wrapper1, "paused", "get").mockReturnValue(false);
+      
+      // Set ended to false for both wrappers
+      vi.spyOn(wrapper1, "ended", "get").mockReturnValue(false);
+      vi.spyOn(wrapper2, "ended", "get").mockReturnValue(false);
+
+      // Spy on the event suppression and enabling methods
+      const suppressSpy = vi.spyOn(wrapper2, "suppressEventType");
+      const enableSpy = vi.spyOn(wrapper2, "enableEventType");
+      
+      // Spy on the seekTracks method to verify it's called
+      const seekTracksSpy = vi.spyOn(mediaSyncElement as any, "seekTracks");
+
+      // Manually invoke correctDrift
+      (mediaSyncElement as any).correctDrift();
+
+      // Verify waiting events are suppressed
+      expect(suppressSpy).toHaveBeenCalledWith(MediaEvent.waiting);
+      
+      // Verify seekTracks was called with wrapper2
+      expect(seekTracksSpy).toHaveBeenCalled();
+      const tracksPassedToSeekTracks = seekTracksSpy.mock.calls[0][0];
+      expect(tracksPassedToSeekTracks).toContain(wrapper2);
+
+      // Before running timers, enableEventType should not be called yet
+      expect(enableSpy).not.toHaveBeenCalled();
+
+      // Run all timers to trigger the setTimeout callback
+      vi.runAllTimers();
+
+      // After timers run, events should be re-enabled
+      expect(enableSpy).toHaveBeenCalledWith(MediaEvent.waiting);
+    });
   });
 
   describe("ended event handling", () => {
