@@ -615,7 +615,21 @@ export class MediaSync extends HTMLElement {
     // If we have any tracks that need correction, use the seekTracks method
     if (driftedTracks.length > 0) {
       Logger.debug(`Drift correction: ${driftedTracks.length} tracks exceeded ${DRIFT_CORRECTION_THRESHOLD}ms threshold`);
+      
+      // Suppress waiting events for tracks that will be corrected to prevent pausing
+      driftedTracks.forEach(track => {
+        track.suppressEventType(MediaEvent.waiting);
+      });
+      
+      // Perform the seek to synchronize tracks
       this.seekTracks(driftedTracks, mainTime);
+      
+      // Re-enable waiting events after a reasonable delay
+      setTimeout(() => {
+        driftedTracks.forEach(track => {
+          track.enableEventType(MediaEvent.waiting);
+        });
+      }, SEEK_DEBOUNCE_DELAY * 2);
     }
   }
 

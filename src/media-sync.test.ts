@@ -737,8 +737,8 @@ describe("MediaSync", () => {
       // Spy on updateLoopStateForNonMainElements
       const updateLoopSpy = vi.spyOn(mediaSyncElement as any, "updateLoopStateForNonMainElements");
       
-      // Trigger attributeChangedCallback manually
-      mediaSyncElement.attributeChangedCallback("loop", null, "");
+      // Trigger attributeChangedCallback manually 
+      mediaSyncElement.attributeChangedCallback("loop", "", "");
       
       // Verify loop property was updated to true
       expect(mediaSyncElement.loop).toBe(true);
@@ -747,19 +747,23 @@ describe("MediaSync", () => {
     
     it("should disable loop on non-main media elements", () => {
       // Setup loop getter/setter spies for wrappers
-      const wrapper1LoopSpy = vi.spyOn(wrapper1, "loop", "get").mockReturnValue(true);
       const wrapper1LoopSetter = vi.fn();
+      const wrapper2LoopSetter = vi.fn();
+      
+      // Mock the getters and setters
+      vi.spyOn(wrapper1, "loop", "get").mockReturnValue(true);
+      vi.spyOn(wrapper2, "loop", "get").mockReturnValue(true);
+      
+      // Override the setters for testing
       Object.defineProperty(wrapper1, "loop", {
         configurable: true,
-        get: wrapper1LoopSpy,
+        get: () => true,
         set: wrapper1LoopSetter,
       });
       
-      const wrapper2LoopSpy = vi.spyOn(wrapper2, "loop", "get").mockReturnValue(true);
-      const wrapper2LoopSetter = vi.fn();
       Object.defineProperty(wrapper2, "loop", {
         configurable: true,
-        get: wrapper2LoopSpy,
+        get: () => true,
         set: wrapper2LoopSetter,
       });
       

@@ -21,6 +21,7 @@ export class MediaElementWrapper extends EventTarget {
     [MediaEvent.play]: true,
     [MediaEvent.ratechange]: true,
     [MediaEvent.seeking]: true,
+    [MediaEvent.waiting]: true,
   };
 
   /**
@@ -313,7 +314,11 @@ export class MediaElementWrapper extends EventTarget {
     
     // Waiting events are important for knowing when playback has stopped due to buffering
     this._element.addEventListener("waiting", () => {
-      this.dispatchEvent(new CustomEvent(MediaEvent.waiting));
+      if (this.emitEvents[MediaEvent.waiting]) {
+        this.dispatchEvent(new CustomEvent(MediaEvent.waiting));
+      } else {
+        Logger.debug(`(Not emitting a waiting event from ${this.id})`);
+      }
     });
     
     // Ended events are important for handling tracks with different durations
