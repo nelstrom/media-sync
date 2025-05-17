@@ -235,7 +235,8 @@ export class MediaSync extends HTMLElement {
   
   /**
    * Set the loop state of the media sync element
-   * Also updates the loop state of the main element to match
+   * Native loop property on media elements is always disabled
+   * as MediaSync handles looping behavior
    */
   public set loop(value: boolean) {
     if (this._loop !== value) {
@@ -247,16 +248,6 @@ export class MediaSync extends HTMLElement {
         this.setAttribute('loop', '');
       } else {
         this.removeAttribute('loop');
-      }
-      
-      // Update loop state on main element if it exists
-      if (this.mediaElements.length > 0) {
-        const mainElement = this.mainElement;
-        if (mainElement) {
-          mainElement.loop = value;
-          // Ensure non-main elements don't have loop enabled
-          this.updateLoopStateForNonMainElements();
-        }
       }
     }
   }
@@ -358,14 +349,9 @@ export class MediaSync extends HTMLElement {
       this._loop = newValue !== null;
       Logger.debug(`MediaSync: Loop ${this._loop ? 'enabled' : 'disabled'}`);
       
-      // Update loop state on main element if it exists
+      // Ensure all elements have loop property disabled
       if (this.mediaElements.length > 0) {
-        const mainElement = this.mainElement;
-        if (mainElement) {
-          mainElement.loop = this._loop;
-          // Ensure non-main elements don't have loop enabled
-          this.updateLoopStateForNonMainElements();
-        }
+        this.updateLoopStateForAllElements();
       }
     }
   }
@@ -701,6 +687,14 @@ export class MediaSync extends HTMLElement {
     elements: HTMLMediaElement[],
     mainElement: HTMLMediaElement
   ): MediaElementWrapper[] {
+    // Remove loop attributes from all elements - looping is controlled by MediaSync
+    elements.forEach(element => {
+      if (element.hasAttribute('loop')) {
+        Logger.debug(`Removing native 'loop' attribute from media element`);
+        element.removeAttribute('loop');
+      }
+    });
+    
     // Set up all media elements first
     const wrappers = elements.map((element, index) => {
       const isMain = element === mainElement;
@@ -790,10 +784,27 @@ export class MediaSync extends HTMLElement {
         }
         
         // Check if this pause event was triggered because the track reached its end
-        // If it's ended, we should NOT propagate the pause to other tracks
-        if (wrapper.ended) {
-          Logger.debug(`Ignoring pause event from element ${index} because it reached the end of its duration`);
-          return;
+        if (wrapper.ended || wrapper.isEnded()) {
+          Logger.debug(`Media element ${index} reached end of its duration`);
+          
+          // If looping is enabled and this is the main element, handle looping
+          if (isMain && this._loop) {
+            Logger.debug(`Looping enabled for MediaSync - restarting all tracks from beginning`);
+            
+            // Seek all tracks to the beginning and ensure they keep playing
+            this.seekTracks(this.mediaElements, 0);
+            
+            // Resume playback for all tracks after a short delay
+            setTimeout(() => {
+              this.playTracks(this.mediaElements);
+            }, 50);
+            
+            return;
+          } else {
+            // If not looping, ignore the pause event from a track that reached its end
+            Logger.debug(`Ignoring pause event from element ${index} because it reached the end of its duration`);
+            return;
+          }
         }
         
         // Forward the pause event to listeners on the MediaSync element
@@ -870,29 +881,32 @@ export class MediaSync extends HTMLElement {
         }));
       });
       
-      // If this is the main element, listen for loop property changes
-      if (isMain) {
-        wrapper.addEventListener('loopchange', (e: Event) => {
-          const customEvent = e as CustomEvent;
-          const loopValue = customEvent.detail.loop;
-          Logger.debug(`Loop change event from main element: ${loopValue}`);
-          
-          // Only update if the value is different to avoid loops
-          if (this._loop !== loopValue) {
-            // Update the MediaSync loop property/attribute to match main element
-            this.loop = loopValue;
-          }
-        });
-      }
+      // We no longer mirror loop state from media elements since MediaSync
+      // now completely controls looping behavior
       
       // Handle ended events (when a track finishes playing)
       wrapper.addEventListener(MediaEvent.ended, () => {
         Logger.debug(`Ended event from element ${index}`);
         
         if (isMain) {
+          // If looping is enabled for the MediaSync element, restart playback from the beginning
+          if (this._loop && !this._disabled) {
+            Logger.debug('Main track ended with loop enabled - restarting all tracks');
+            
+            // Seek all tracks to the beginning
+            this.seekTracks(this.mediaElements, 0);
+            
+            // Resume playback for all tracks after a short delay
+            setTimeout(() => {
+              this.playTracks(this.mediaElements);
+            }, 50);
+            
+            return;
+          }
+          
           Logger.debug('Main track ended, forwarding ended event');
           
-          // Pause all other tracks when the main track ends
+          // If not looping, pause all other tracks when the main track ends
           if (!this._disabled) {
             const otherTracks = this.otherTracks(wrapper);
             this.pauseTracks(otherTracks);
@@ -924,8 +938,8 @@ export class MediaSync extends HTMLElement {
       setTimeout(() => this.initAudioContext(), 0);
     }
     
-    // Synchronize loop state for all elements
-    this.updateLoopStateForNonMainElements();
+    // Ensure all elements have loop disabled
+    this.updateLoopStateForAllElements();
 
     return wrappers;
   }
@@ -1101,20 +1115,17 @@ export class MediaSync extends HTMLElement {
   }
   
   /**
-   * Update loop state for non-main elements
-   * Ensures only the main element has loop enabled if needed
+   * Update loop state for media elements
+   * Ensures all media elements have loop property disabled
+   * since looping is now handled by MediaSync
    */
-  private updateLoopStateForNonMainElements(): void {
-    const mainElement = this.mainElement;
-    if (!mainElement) return;
+  private updateLoopStateForAllElements(): void {
+    if (this.mediaElements.length === 0) return;
     
-    // Set loop on main element based on MediaSync loop state
-    mainElement.loop = this._loop;
-    
-    // Ensure loop is disabled for all non-main elements
-    this.otherTracks(mainElement).forEach(media => {
+    // Disable loop for all elements - MediaSync now controls looping completely
+    this.mediaElements.forEach(media => {
       if (media.loop) {
-        Logger.debug(`Disabling loop for non-main track ${media.id}`);
+        Logger.debug(`Disabling native loop for track ${media.id}`);
         media.loop = false;
       }
     });
