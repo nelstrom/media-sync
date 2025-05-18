@@ -1,6 +1,6 @@
 import { MediaEvent, SEEK_DEBOUNCE_DELAY, type MediaEventName, type ReadyState } from "./constants";
 import { MediaElementWrapper } from "./media-element-wrapper";
-import { Logger } from "./utils";
+import { Logger, debounce } from "./utils";
 
 // Import HTMLMediaElement readyState constants
 const { 
@@ -789,16 +789,8 @@ export class MediaSync extends HTMLElement {
           
           // If looping is enabled and this is the main element, handle looping
           if (isMain && this._loop) {
-            Logger.debug(`Looping enabled for MediaSync - restarting all tracks from beginning`);
-            
-            // Seek all tracks to the beginning and ensure they keep playing
-            this.seekTracks(this.mediaElements, 0);
-            
-            // Resume playback for all tracks after a short delay
-            setTimeout(() => {
-              this.playTracks(this.mediaElements);
-            }, 50);
-            
+            Logger.debug(`Looping enabled for MediaSync - calling debounced track reset`);
+            this.resetTracksToBeginningDebounced();
             return;
           } else {
             // If not looping, ignore the pause event from a track that reached its end
@@ -891,16 +883,8 @@ export class MediaSync extends HTMLElement {
         if (isMain) {
           // If looping is enabled for the MediaSync element, restart playback from the beginning
           if (this._loop && !this._disabled) {
-            Logger.debug('Main track ended with loop enabled - restarting all tracks');
-            
-            // Seek all tracks to the beginning
-            this.seekTracks(this.mediaElements, 0);
-            
-            // Resume playback for all tracks after a short delay
-            setTimeout(() => {
-              this.playTracks(this.mediaElements);
-            }, 50);
-            
+            Logger.debug('Main track ended with loop enabled - calling debounced track reset');
+            this.resetTracksToBeginningDebounced();
             return;
           }
           
@@ -1007,6 +991,31 @@ export class MediaSync extends HTMLElement {
   private enableEvents(eventType: MediaEventName): void {
     this.mediaElements.forEach((wrapper) => wrapper.enableEventType(eventType));
   }
+  
+  // Debounced function to reset all tracks to beginning for looping
+  private resetTracksToBeginningDebounced = debounce(() => {
+    Logger.debug('Resetting all tracks to beginning for loop playback');
+    
+    // Suppress waiting events while seeking to prevent unnecessary pauses
+    this.mediaElements.forEach(track => {
+      track.suppressEventType(MediaEvent.waiting);
+    });
+    
+    // Seek all tracks to the beginning
+    this.seekTracks(this.mediaElements, 0);
+    
+    // Resume playback and re-enable waiting events after a short delay
+    setTimeout(() => {
+      if (!this._disabled) {
+        this.playTracks(this.mediaElements);
+      }
+      
+      // Re-enable waiting events
+      this.mediaElements.forEach(track => {
+        track.enableEventType(MediaEvent.waiting);
+      });
+    }, SEEK_DEBOUNCE_DELAY * 2);
+  }, SEEK_DEBOUNCE_DELAY);
 
   private async playTracks(mediaElements = this.mediaElements): Promise<void> {
     if (mediaElements.length === 0) {

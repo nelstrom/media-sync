@@ -326,16 +326,16 @@ export class MediaElementWrapper extends EventTarget {
       this.dispatchEvent(new CustomEvent(MediaEvent.ended));
     });
     
-    // Observe the loop attribute for changes
+    // Observe and remove the loop attribute if set
+    // We want MediaSync to fully manage looping behavior
     const loopObserver = new MutationObserver((mutations) => {
       mutations.forEach((mutation) => {
         if (mutation.attributeName === 'loop') {
-          // Notify about loop property changes via a custom event
-          const hasLoop = this._element.hasAttribute('loop');
-          Logger.debug(`Loop attribute changed to ${hasLoop ? 'true' : 'false'} on element ${this.id}`);
-          this.dispatchEvent(new CustomEvent('loopchange', {
-            detail: { loop: hasLoop }
-          }));
+          if (this._element.hasAttribute('loop')) {
+            // Remove the loop attribute to prevent native looping
+            Logger.debug(`Removing loop attribute from element ${this.id} - looping is managed by MediaSync`);
+            this._element.removeAttribute('loop');
+          }
         }
       });
     });

@@ -759,11 +759,6 @@ describe("MediaSync", () => {
         set: wrapper1LoopSetter,
       });
       
-      // Mock the updateLoopStateForAllElements method
-      const updateLoopSpy = vi.spyOn(
-        mediaSyncElement as any, 
-        "updateLoopStateForAllElements"
-      );
       
       // Set loop property
       mediaSyncElement.loop = true;
@@ -842,6 +837,128 @@ describe("MediaSync", () => {
       // Verify MediaSync loop property and attribute were NOT updated (we ignore these events now)
       expect(mediaSyncElement.loop).toBe(false);
       expect(setAttributeSpy).not.toHaveBeenCalled();
+    });
+    
+    it("should suppress waiting events when looping via ended event", () => {
+      // Setup fake timers
+      vi.useFakeTimers();
+      
+      // Setup for test
+      wrapper1.isMain = true;
+      wrapper2.isMain = false;
+      
+      // Enable looping on MediaSync
+      mediaSyncElement.loop = true;
+      
+      // Spy on the suppressEventType and enableEventType methods
+      const suppressSpy1 = vi.spyOn(wrapper1, "suppressEventType");
+      const suppressSpy2 = vi.spyOn(wrapper2, "suppressEventType");
+      const enableSpy1 = vi.spyOn(wrapper1, "enableEventType");
+      const enableSpy2 = vi.spyOn(wrapper2, "enableEventType");
+      
+      // Mock the debounced function to test it directly
+      const resetTracksDebounced = vi.spyOn(mediaSyncElement as any, "resetTracksToBeginningDebounced");
+      
+      // Spy on seek and play methods
+      const seekTracksSpy = vi.spyOn(mediaSyncElement as any, "seekTracks");
+      const playTracksSpy = vi.spyOn(mediaSyncElement as any, "playTracks");
+      
+      // Trigger ended event from main track to start the looping behavior
+      wrapper1.dispatchEvent(new CustomEvent(MediaEvent.ended));
+      
+      // Verify the debounced method was called
+      expect(resetTracksDebounced).toHaveBeenCalled();
+      
+      // Get direct reference to the debounced function
+      const debouncedFn = (mediaSyncElement as any).resetTracksToBeginningDebounced;
+      
+      // Call the debounced function directly (since we can't easily trigger the debounced callback)
+      debouncedFn();
+      
+      // Verify waiting events are suppressed on both tracks
+      expect(suppressSpy1).toHaveBeenCalledWith(MediaEvent.waiting);
+      expect(suppressSpy2).toHaveBeenCalledWith(MediaEvent.waiting);
+      
+      // Verify seekTracks was called with position 0
+      expect(seekTracksSpy).toHaveBeenCalledWith(expect.any(Array), 0);
+      
+      // Before running timers, playTracks and enableEventType should not have been called
+      expect(playTracksSpy).not.toHaveBeenCalled();
+      expect(enableSpy1).not.toHaveBeenCalled();
+      expect(enableSpy2).not.toHaveBeenCalled();
+      
+      // Run all timers to trigger the setTimeout callback
+      vi.runAllTimers();
+      
+      // After timers run, playTracks should be called and events should be re-enabled
+      expect(playTracksSpy).toHaveBeenCalled();
+      expect(enableSpy1).toHaveBeenCalledWith(MediaEvent.waiting);
+      expect(enableSpy2).toHaveBeenCalledWith(MediaEvent.waiting);
+      
+      // Reset timers
+      vi.useRealTimers();
+    });
+    
+    it("should suppress waiting events when looping via pause event at end of track", () => {
+      // Setup fake timers
+      vi.useFakeTimers();
+      
+      // Setup for test
+      wrapper1.isMain = true;
+      wrapper2.isMain = false;
+      
+      // Enable looping on MediaSync
+      mediaSyncElement.loop = true;
+      
+      // Clear all previous calls
+      vi.clearAllMocks();
+      
+      // Spy on the suppressEventType and enableEventType methods
+      const suppressSpy1 = vi.spyOn(wrapper1, "suppressEventType");
+      const suppressSpy2 = vi.spyOn(wrapper2, "suppressEventType");
+      const enableSpy1 = vi.spyOn(wrapper1, "enableEventType");
+      const enableSpy2 = vi.spyOn(wrapper2, "enableEventType");
+      
+      // Mock the debounced function to test it directly
+      const resetTracksDebounced = vi.spyOn(mediaSyncElement as any, "resetTracksToBeginningDebounced");
+      
+      // Spy on seek and play methods
+      const seekTracksSpy = vi.spyOn(mediaSyncElement as any, "seekTracks");
+      const playTracksSpy = vi.spyOn(mediaSyncElement as any, "playTracks");
+      
+      // Make wrapper1 report it has ended
+      vi.spyOn(wrapper1, "ended", "get").mockReturnValue(true);
+      vi.spyOn(wrapper1, "isEnded").mockReturnValue(true);
+      
+      // Trigger pause event from main track (which would happen when a track reaches its end)
+      wrapper1.dispatchEvent(new CustomEvent(MediaEvent.pause));
+      
+      // Verify the debounced method was called
+      expect(resetTracksDebounced).toHaveBeenCalled();
+      
+      // Get direct reference to the debounced function
+      const debouncedFn = (mediaSyncElement as any).resetTracksToBeginningDebounced;
+      
+      // Call the debounced function directly
+      debouncedFn();
+      
+      // Verify waiting events are suppressed on both tracks
+      expect(suppressSpy1).toHaveBeenCalledWith(MediaEvent.waiting);
+      expect(suppressSpy2).toHaveBeenCalledWith(MediaEvent.waiting);
+      
+      // Verify seekTracks was called with position 0
+      expect(seekTracksSpy).toHaveBeenCalledWith(expect.any(Array), 0);
+      
+      // Run all timers to trigger the setTimeout callback
+      vi.runAllTimers();
+      
+      // After timers run, playTracks should be called and events should be re-enabled
+      expect(playTracksSpy).toHaveBeenCalled();
+      expect(enableSpy1).toHaveBeenCalledWith(MediaEvent.waiting);
+      expect(enableSpy2).toHaveBeenCalledWith(MediaEvent.waiting);
+      
+      // Reset timers
+      vi.useRealTimers();
     });
     
     it("should not update MediaSync loop property when values match", () => {
